@@ -48,7 +48,7 @@ int buildfile(char *filename, const struct cpbuild_options *opt)
 	char *outfile, **args = malloc((len + 6) * sizeof(*args));
 	char *compiler = opt->compiler;
 	const char *periodptr;
-	char recompile = 0;
+	char recompile = (opt->boolops & BOOLOPS_FORCE) == BOOLOPS_FORCE;
 	char outputop[] = "-o", compileop[] = "-c";
 	if(args == NULL)
 		perror("malloc failed");
