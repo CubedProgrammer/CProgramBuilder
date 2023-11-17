@@ -2,11 +2,12 @@
 #include<stdlib.h>
 #include<string.h>
 #include"cpbuild.h"
+#include"utils.h"
 int main(int argl, char *argv[])
 {
 	struct cpbuild_options defops;
 	int argstart = argl;
-	unsigned nxtarg = 0, nxtcnt;
+	unsigned nxtarg = 0, nxtcnt = 0;
 	char *arg;
 	char thisdir[] = ".";
 	char *thisdirp[] = {thisdir, NULL};
@@ -46,7 +47,6 @@ int main(int argl, char *argv[])
 		}
 	}
 	fill_default_options(&defops);
-	puts(defops.artifact);
-	int succ = argstart == argl ? cpbuild(thisdirp, &defops) : cpbuild(argv + 1, &defops);
+	int succ = argstart == argl ? cpbuild(thisdirp, &defops) : cpbuild(argv + argstart, &defops);
 	return succ;
 }

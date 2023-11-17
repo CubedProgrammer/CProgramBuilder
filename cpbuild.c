@@ -7,27 +7,38 @@
 #include"utils.h"
 const char cpb_default_option_list[] = "cc\0c++";
 const char cpb_accepted_extensions[] = "c\0c++\0cpp\0cxx\0";
-void build_callback(const char *file, const void *arg)
+void build_callback(const char *file, void *arg)
 {
-	const struct cpbuild_options *opt = arg;
+	struct cpbuild_options *opt = arg;
 	char *periodptr = strrchr(file, '.');
 	size_t len = strlen(file);
 	if(strcontains(cpb_accepted_extensions, periodptr + 1))
 	{
-		char *filename = malloc(len + 1);
-		if(filename == NULL)
+		char *filename = malloc(len + 1), *objname = changeext(file, "o");
+		if(objname == NULL || filename == NULL)
 			perror("malloc failed");
 		else
 		{
 			memcpy(filename, file, len + 1);
-			buildfile(filename, opt);
+			append_program_arg(&opt->linkerargs, objname);
+			buildfile(filename, objname, opt);
 			free(filename);
 		}
 	}
 }
-int cpbuild(char **targets, const struct cpbuild_options *opt)
+int cpbuild(char **targets, struct cpbuild_options *opt)
 {
 	struct stat fdat;
+	char outputop[] = "-o";
+	unsigned short argcapa = 16;
+	if(opt->linkerops.len + 3 > argcapa)
+		argcapa = opt->linkerops.len + 3;
+	init_program_args(&opt->linkerargs, argcapa);
+	opt->linkerargs.options[0] = opt->compiler;
+	opt->linkerargs.options[1] = outputop;
+	opt->linkerargs.options[2] = opt->artifact;
+	memcpy(opt->linkerargs.options + 3, opt->linkerops.options, sizeof(char*) * opt->linkerops.len);
+	opt->linkerargs.len = opt->linkerops.len + 3;
 	for(char **it = targets; *it != NULL; ++it)
 	{
 		if(stat(*it, &fdat))
@@ -35,19 +46,29 @@ int cpbuild(char **targets, const struct cpbuild_options *opt)
 		else if(S_ISDIR(fdat.st_mode))
 			iterate_directory(*it, &build_callback, opt);
 		else
-			buildfile(*it, opt);
+		{
+			if(append_program_arg(&opt->linkerargs, changeext(*it, "o")) == 0)
+				buildfile(*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
+			else
+			{
+				fprintf(stderr, "Adding %s", *it);
+				perror(" to linker array failed");
+			}
+		}
 	}
+	runprogram(opt->compiler, opt->linkerargs.options);
+	for(unsigned short i = 3; i < opt->linkerargs.len; ++i)
+		free(opt->linkerargs.options[i]);
+	free(opt->linkerargs.options);
 	return 0;
 }
-int buildfile(char *filename, const struct cpbuild_options *opt)
+int buildfile(char *filename, char *outfile, const cpbuild_options_t *opt)
 {
 	int succ = 1;
-	size_t lastperiod, namelen;
 	struct stat fdat, odat;
 	unsigned short len = opt->compilerops.len;
-	char *outfile, **args = malloc((len + 6) * sizeof(*args));
+	char **args = malloc((len + 6) * sizeof(*args));
 	char *compiler = opt->compiler;
-	const char *periodptr;
 	char recompile = (opt->boolops & BOOLOPS_FORCE) == BOOLOPS_FORCE;
 	char outputop[] = "-o", compileop[] = "-c";
 	if(args == NULL)
@@ -59,41 +80,54 @@ int buildfile(char *filename, const struct cpbuild_options *opt)
 		memcpy(args + 2, opt->compilerops.options, len * sizeof(char*));
 		args[len + 2] = filename;
 		args[len + 3] = outputop;
-		periodptr = strrchr(filename, '.');
-		if(periodptr == NULL)
-			lastperiod = 0;
-		else
-			lastperiod = periodptr - filename;
-		namelen = strlen(filename + lastperiod) + lastperiod;
-		if(lastperiod == 0)
-			namelen += 2;
-		else
-			namelen = lastperiod + 2;
-		outfile = malloc((namelen + 1) * sizeof(*outfile));
-		if(outfile == NULL)
-			perror("malloc failed");
-		else
+		args[len + 4] = outfile;
+		args[len + 5] = NULL;
+		if(!recompile)
 		{
-			memcpy(outfile, filename, namelen - 2);
-			strcpy(outfile + namelen - 2, ".o");
-			args[len + 4] = outfile;
-			args[len + 5] = NULL;
-			if(!recompile)
-			{
-				if(stat(outfile, &odat))
-					recompile = 1;
-				else if(stat(filename, &fdat) == 0)
-					recompile = fdat.st_mtime > odat.st_mtime;
-			}
-			if(recompile)
-				succ = runprogram(compiler, args) > 0;
-			free(outfile);
+			if(stat(outfile, &odat))
+				recompile = 1;
+			else if(stat(filename, &fdat) == 0)
+				recompile = fdat.st_mtime > odat.st_mtime;
 		}
+		if(recompile)
+			succ = runprogram(compiler, args);
 		free(args);
 	}
 	return succ;
 }
-
+int init_program_args(struct program_args *arr, unsigned short capa)
+{
+	int succ = 0;
+	arr->options = malloc(capa * sizeof(*arr->options));
+	if(arr->options == NULL)
+		succ = -1;
+	else
+	{
+		arr->len = 0;
+		arr->capa = capa;
+	}
+	return succ;
+}
+int append_program_arg(struct program_args *arr, char *arg)
+{
+	int succ = 0;
+	if(arr->len == arr->capa)
+	{
+		char **new = malloc(arr->capa + (arr->capa >> 1));
+		if(new != NULL)
+		{
+			arr->capa += arr->capa >> 1;
+			memcpy(new, arr->options, arr->len * sizeof(char*));
+			free(arr->options);
+			arr->options = new;
+		}
+		else
+			succ = -1;
+	}
+	if(succ == 0)
+		arr->options[arr->len++] = arg;
+	return succ;
+}
 int fill_default_options(cpbuild_options_t *opt)
 {
 	int succ = 0;

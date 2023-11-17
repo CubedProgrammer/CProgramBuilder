@@ -7,7 +7,7 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include<unistd.h>
-void iterate_directory(const char *dirname, void(*func)(const char*, const void*), const void *arg)
+void iterate_directory(const char *dirname, void(*func)(const char*, void*), void *arg)
 {
 	DIR *dirhand = opendir(dirname);
 	if(dirhand == NULL)
@@ -91,10 +91,10 @@ int runprogram(const char *program, char *const*args)
 		fcntl(fds[1], F_SETFD, FD_CLOEXEC);
 		if(execvp(program, args) == -1)
 		{
-			write(fds[1], &ch, sizeof ch);
-			close(fds[1]);
 			fprintf(stderr, "Running program %s", program);
 			perror(" failed");
+			write(fds[1], &ch, sizeof ch);
+			close(fds[1]);
 			exit(0);
 		}
 	}
@@ -109,4 +109,11 @@ char strcontains(const char *strlist, const char *str)
 			found = 1;
 	}
 	return found;
+}
+char *changeext(const char *og, const char *ext)
+{
+	const char *period = strrchr(og, '.');
+	period = period == NULL ? og : period;
+	size_t len = period - og, extlen = strlen(ext);
+	return strcpy((char*)memcpy(malloc(len + extlen + 2), og, len + 1) + len + 1, ext) - len - 1;
 }
