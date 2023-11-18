@@ -130,37 +130,45 @@ int append_program_arg(struct program_args *arr, char *arg)
 }
 int fill_default_options(cpbuild_options_t *opt)
 {
-	int succ = 0;
+	int succ=0;
 	char cbuf[4096];
-	if(opt->artifact == NULL)
+	if(opt->artifact==NULL)
 	{
-		if(realpath(".", cbuf) == NULL)
-			succ = -1;
+		if(realpath(".", cbuf)==NULL)
+			succ=-1;
 		else
 		{
-			unsigned off = 0, len;
-			for(const char *it = cbuf; *it != '\0'; ++len, ++it)
+			unsigned off=0,len;
+			for(const char*it=cbuf;*it!='\0';++len,++it)
 			{
-				if(*it == '/')
+				if(*it=='/')
 				{
-					off = it + 1 - cbuf;
-					len = 0;
+					off=it+1-cbuf;
+					len=0;
 				}
 			}
-			opt->artifact = malloc(len);
-			if(opt->artifact == NULL)
-				succ = -1;
+			opt->artifact=malloc(len);
+			if(opt->artifact==NULL)
+				succ=-1;
 			else
-				memcpy(opt->artifact, cbuf + off, len);
+				memcpy(opt->artifact,cbuf+off,len);
 		}
 	}
-	if(opt->compiler == NULL)
+	if(opt->compiler==NULL)
 	{
-		opt->compiler = malloc(3);
-		if(opt->compiler == NULL)
-			succ = -1;
+		opt->compiler=malloc(3);
+		if(opt->compiler==NULL)
+			succ=-1;
 		else
-			memcpy(opt->compiler, cpb_default_option_list, 3);
+			memcpy(opt->compiler,cpb_default_option_list,3);
+	}
+	if(opt->compilerpp==NULL)
+	{
+		opt->compilerpp=malloc(3);
+		if(opt->compilerpp==NULL)
+			succ=-1;
+		else
+			memcpy(opt->compilerpp,cpb_default_option_list+3,4);
 	}
 	return succ;
 }
