@@ -65,11 +65,12 @@ void iterate_directory(const char *dirname, void(*func)(const char*, void*), voi
 		}
 	}
 }
-int runprogram(const char *program, char *const*args)
+int runprogram(char*const*args)
 {
 	int fds[2];
 	int status, succ = -1;
 	char ch = 13;
+	const char*program=args[0];
 	int pid = fork();
 	if(pipe(fds) < 0)
 		perror("pipe failed");

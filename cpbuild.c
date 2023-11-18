@@ -56,7 +56,7 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 			}
 		}
 	}
-	runprogram(opt->linkerargs.options[0],opt->linkerargs.options);
+	runprogram(opt->linkerargs.options);
 	for(unsigned short i = 3; i < opt->linkerargs.len; ++i)
 		free(opt->linkerargs.options[i]);
 	free(opt->linkerargs.options);
@@ -99,7 +99,7 @@ int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
 				recompile = fdat.st_mtime > odat.st_mtime;
 		}
 		if(recompile)
-			succ = runprogram(compiler, args);
+			succ=runprogram(args);
 		free(args);
 	}
 	return succ;
