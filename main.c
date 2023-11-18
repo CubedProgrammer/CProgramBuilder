@@ -8,8 +8,8 @@ int main(int argl, char *argv[])
 	struct cpbuild_options defops;
 	int argstart = argl;
 	unsigned nxtarg = 0, nxtcnt = 0;
-	char *arg;
-	char thisdir[] = ".";
+	char*arg,*artifact=NULL;
+	char thisdir[]=".";
 	char *thisdirp[] = {thisdir, NULL};
 	memset(&defops, 0, sizeof defops);
 	for(int i = 1; i < argstart; ++i)
@@ -20,7 +20,7 @@ int main(int argl, char *argv[])
 		switch(nxtarg)
 		{
 			case 1:
-				defops.artifact = arg;
+				artifact=defops.artifact=arg;
 				--nxtcnt;
 				break;
 			default:
@@ -47,6 +47,10 @@ int main(int argl, char *argv[])
 		}
 	}
 	fill_default_options(&defops);
-	int succ = argstart == argl ? cpbuild(thisdirp, &defops) : cpbuild(argv + argstart, &defops);
+	int succ=argstart==argl?cpbuild(thisdirp,&defops):cpbuild(argv+argstart,&defops);
+	free(defops.compilerpp);
+	free(defops.compiler);
+	if(defops.artifact!=artifact)
+		free(defops.artifact);
 	return succ;
 }

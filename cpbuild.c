@@ -56,28 +56,37 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 			}
 		}
 	}
-	runprogram(opt->compiler, opt->linkerargs.options);
+	runprogram(opt->linkerargs.options[0],opt->linkerargs.options);
 	for(unsigned short i = 3; i < opt->linkerargs.len; ++i)
 		free(opt->linkerargs.options[i]);
 	free(opt->linkerargs.options);
 	return 0;
 }
-int buildfile(char *filename, char *outfile, const cpbuild_options_t *opt)
+int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
 {
 	int succ = 1;
 	struct stat fdat, odat;
 	unsigned short len = opt->compilerops.len;
-	char **args = malloc((len + 6) * sizeof(*args));
-	char *compiler = opt->compiler;
+	char*compiler=opt->compiler;
 	char recompile = (opt->boolops & BOOLOPS_FORCE) == BOOLOPS_FORCE;
 	char outputop[] = "-o", compileop[] = "-c";
+	char**compilerops=opt->compilerops.options;
+	char*fileext=strrchr(filename,'.');
+	if(fileext!=NULL&&strcontains(cpb_accepted_extensions+2,fileext+1))
+	{
+		compiler=opt->compilerpp;
+		compilerops=opt->compilerppops.options;
+		len=opt->compilerppops.len;
+		opt->linkerargs.options[0]=opt->compilerpp;
+	}
+	char**args=malloc((len+6)*sizeof(*args));
 	if(args == NULL)
 		perror("malloc failed");
 	else
 	{
 		args[0] = compiler;
 		args[1] = compileop;
-		memcpy(args + 2, opt->compilerops.options, len * sizeof(char*));
+		memcpy(args+2,compilerops,len*sizeof(char*));
 		args[len + 2] = filename;
 		args[len + 3] = outputop;
 		args[len + 4] = outfile;
@@ -128,7 +137,7 @@ int append_program_arg(struct program_args *arr, char *arg)
 		arr->options[arr->len++] = arg;
 	return succ;
 }
-int fill_default_options(cpbuild_options_t *opt)
+int fill_default_options(cpbuild_options_t*opt)
 {
 	int succ=0;
 	char cbuf[4096];
@@ -164,7 +173,7 @@ int fill_default_options(cpbuild_options_t *opt)
 	}
 	if(opt->compilerpp==NULL)
 	{
-		opt->compilerpp=malloc(3);
+		opt->compilerpp=malloc(4);
 		if(opt->compilerpp==NULL)
 			succ=-1;
 		else
