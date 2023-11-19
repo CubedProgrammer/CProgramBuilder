@@ -7,12 +7,12 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include<unistd.h>
-void iterate_directory(const char *dirname, void(*func)(const char*, void*), void *arg)
+void iterate_directory(const char*dirname,void(*func)(const char*,void*),void*arg)
 {
 	DIR *dirhand = opendir(dirname);
 	if(dirhand == NULL)
 	{
-		fprintf(stderr, "Opening %s", dirname);
+		fprintf(stderr,"Opening %s",dirname);
 		perror(" failed");
 	}
 	else
