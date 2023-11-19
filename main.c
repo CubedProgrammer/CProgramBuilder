@@ -6,12 +6,12 @@
 int main(int argl, char *argv[])
 {
 	struct cpbuild_options defops;
-	int argstart = argl;
+	int argstart=argl;
 	unsigned nxtarg = 0, nxtcnt = 0;
 	char*arg,*artifact=NULL;
 	char thisdir[]=".";
-	char *thisdirp[] = {thisdir, NULL};
-	struct program_options*currops;
+	char*thisdirp[]={thisdir,NULL};
+	struct program_options*currops=NULL;
 	memset(&defops,0,sizeof defops);
 	for(int i=1;i<argstart;++i)
 	{
@@ -20,20 +20,22 @@ int main(int argl, char *argv[])
 			nxtarg=0;
 		switch(nxtarg)
 		{
+			case 4:
+				currops=&defops.linkerops;
+				break;
 			case 3:
 				currops=&defops.compilerppops;
+				break;
 			case 2:
-				currops->options=argv+i;
-				currops->len=nxtcnt;
-				nxtcnt=0;
-				i+=currops->len-1;
+				currops=&defops.compilerops;
+				break;
 				break;
 			case 1:
 				artifact=defops.artifact=arg;
 				--nxtcnt;
 				break;
 			default:
-				if(arg[0] == '-')
+				if(arg[0]=='-')
 				{
 					++arg;
 					switch(*arg)
@@ -45,6 +47,8 @@ int main(int argl, char *argv[])
 						case'C':
 							nxtarg=3;
 							break;
+						case'L':
+							nxtarg=4;
 						case'c':
 							nxtarg=2;
 							break;
@@ -55,9 +59,8 @@ int main(int argl, char *argv[])
 							fprintf(stderr,"Unrecognized option %c will be ignored.\n",*arg);
 							break;
 					}
-					if(nxtarg==2||nxtarg==3)
+					if(nxtarg==2||nxtarg==3||nxtarg==4)
 					{
-						currops=&defops.compilerops;
 						if(arg[1]=='\0')
 							nxtcnt=1;
 						else
@@ -67,6 +70,14 @@ int main(int argl, char *argv[])
 				else
 					argstart = i;
 				break;
+		}
+		if(currops!=NULL)
+		{
+			currops->options=argv+i;
+			currops->len=nxtcnt;
+			nxtcnt=0;
+			i+=currops->len-1;
+			currops=NULL;
 		}
 	}
 	fill_default_options(&defops);
