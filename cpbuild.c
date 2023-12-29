@@ -28,6 +28,7 @@ void build_callback(const char *file, void *arg)
 }
 int cpbuild(char **targets, struct cpbuild_options *opt)
 {
+	int succ=0;
 	struct stat fdat;
 	char outputop[] = "-o";
 	unsigned short argcapa = 16;
@@ -56,11 +57,14 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 			}
 		}
 	}
-	runprogram(opt->linkerargs.options);
-	for(unsigned short i = 3; i < opt->linkerargs.len; ++i)
+	if(append_program_arg(&opt->linkerargs, NULL)==0)
+		runprogram(opt->linkerargs.options);
+	else
+		succ=-1;
+	for(unsigned short i=opt->linkerops.len + 3;i<opt->linkerargs.len-1;++i)
 		free(opt->linkerargs.options[i]);
 	free(opt->linkerargs.options);
-	return 0;
+	return succ;
 }
 int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
 {

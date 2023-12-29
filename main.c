@@ -49,6 +49,7 @@ int main(int argl, char *argv[])
 							break;
 						case'L':
 							nxtarg=4;
+							break;
 						case'c':
 							nxtarg=2;
 							break;
