@@ -16,6 +16,7 @@ struct cpbuild_options
 	unsigned short boolops;
 	char*artifact;
 	char*compiler,*compilerpp;
+	char*objdir;
 	struct program_options compilerops,compilerppops;
 	struct program_options linkerops;
 	struct program_args linkerargs;

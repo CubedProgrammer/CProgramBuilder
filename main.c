@@ -3,7 +3,7 @@
 #include<string.h>
 #include"cpbuild.h"
 #include"utils.h"
-int main(int argl, char *argv[])
+int main(int argl,char**argv)
 {
 	struct cpbuild_options defops;
 	int argstart=argl;
@@ -20,6 +20,9 @@ int main(int argl, char *argv[])
 			nxtarg=0;
 		switch(nxtarg)
 		{
+			case 5:
+				defops.objdir = arg;
+				break;
 			case 4:
 				currops=&defops.linkerops;
 				break;
@@ -55,6 +58,10 @@ int main(int argl, char *argv[])
 							break;
 						case'f':
 							defops.boolops |= BOOLOPS_FORCE;
+							break;
+						case'o':
+							nxtarg = 5;
+							nxtcnt = 1;
 							break;
 						default:
 							fprintf(stderr,"Unrecognized option %c will be ignored.\n",*arg);
