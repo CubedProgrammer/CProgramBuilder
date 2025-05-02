@@ -22,6 +22,7 @@ int main(int argl,char**argv)
 		{
 			case 5:
 				defops.objdir = arg;
+				--nxtcnt;
 				break;
 			case 4:
 				currops=&defops.linkerops;
@@ -31,7 +32,6 @@ int main(int argl,char**argv)
 				break;
 			case 2:
 				currops=&defops.compilerops;
-				break;
 				break;
 			case 1:
 				artifact=defops.artifact=arg;

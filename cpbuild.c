@@ -14,7 +14,7 @@ void build_callback(const char *file, void *arg)
 	size_t len = strlen(file);
 	if(strcontains(cpb_accepted_extensions, periodptr + 1))
 	{
-		char *filename = malloc(len + 1), *objname = changeext(file, "o");
+		char *filename = malloc(len + 1), *objname = changeext_add_prefix(file, opt->objdir, "o");
 		if(objname == NULL || filename == NULL)
 			perror("malloc failed");
 		else
@@ -31,15 +31,12 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 	int succ=0;
 	struct stat fdat;
 	char outputop[] = "-o";
-	unsigned short argcapa = 16;
-	if(opt->linkerops.len + 3 > argcapa)
-		argcapa = opt->linkerops.len + 3;
-	init_program_args(&opt->linkerargs, argcapa);
-	opt->linkerargs.options[0] = opt->compiler;
-	opt->linkerargs.options[1] = outputop;
-	opt->linkerargs.options[2] = opt->artifact;
+	init_program_args(&opt->linkerargs,opt->linkerops.len+3);
+	opt->linkerargs.options[0]=opt->compiler;
+	opt->linkerargs.options[1]=outputop;
+	opt->linkerargs.options[2]=opt->artifact;
 	memcpy(opt->linkerargs.options + 3, opt->linkerops.options, sizeof(char*) * opt->linkerops.len);
-	opt->linkerargs.len = opt->linkerops.len + 3;
+	opt->linkerargs.len=opt->linkerops.len+3;
 	for(char **it = targets; *it != NULL; ++it)
 	{
 		if(stat(*it, &fdat))
@@ -48,7 +45,7 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 			iterate_directory(*it, &build_callback, opt);
 		else
 		{
-			if(append_program_arg(&opt->linkerargs, changeext(*it, "o")) == 0)
+			if(append_program_arg(&opt->linkerargs, changeext_add_prefix(*it, opt->objdir, "o")) == 0)
 				buildfile(*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
 			else
 			{
@@ -61,7 +58,7 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 		runprogram(opt->linkerargs.options);
 	else
 		succ=-1;
-	for(unsigned short i=opt->linkerops.len + 3;i<opt->linkerargs.len-1;++i)
+	for(unsigned short i=opt->linkerops.len+3;i<opt->linkerargs.len-1;++i)
 		free(opt->linkerargs.options[i]);
 	free(opt->linkerargs.options);
 	return succ;
@@ -83,28 +80,30 @@ int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
 		len=opt->compilerppops.len;
 		opt->linkerargs.options[0]=opt->compilerpp;
 	}
-	char**args=malloc((len+6)*sizeof(*args));
-	if(args == NULL)
-		perror("malloc failed");
-	else
+	if(!recompile)
 	{
-		args[0] = compiler;
-		args[1] = compileop;
-		memcpy(args+2,compilerops,len*sizeof(char*));
-		args[len + 2] = filename;
-		args[len + 3] = outputop;
-		args[len + 4] = outfile;
-		args[len + 5] = NULL;
-		if(!recompile)
+		if(stat(outfile, &odat))
+			recompile = 1;
+		else if(stat(filename, &fdat) == 0)
+			recompile = fdat.st_mtime > odat.st_mtime;
+	}
+	if(recompile)
+	{
+		char**args=malloc((len+6)*sizeof(*args));
+		if(args == NULL)
+			perror("malloc failed");
+		else
 		{
-			if(stat(outfile, &odat))
-				recompile = 1;
-			else if(stat(filename, &fdat) == 0)
-				recompile = fdat.st_mtime > odat.st_mtime;
-		}
-		if(recompile)
+			args[0] = compiler;
+			args[1] = compileop;
+			memcpy(args+2,compilerops,len*sizeof(char*));
+			args[len + 2] = filename;
+			args[len + 3] = outputop;
+			args[len + 4] = outfile;
+			args[len + 5] = NULL;
 			succ=runprogram(args);
-		free(args);
+			free(args);
+		}
 	}
 	return succ;
 }
@@ -126,7 +125,7 @@ int append_program_arg(struct program_args *arr, char *arg)
 	int succ = 0;
 	if(arr->len == arr->capa)
 	{
-		char **new = malloc(arr->capa + (arr->capa >> 1));
+		char**new=malloc((arr->capa+(arr->capa>>1))*sizeof(char*));
 		if(new != NULL)
 		{
 			arr->capa += arr->capa >> 1;
@@ -183,5 +182,6 @@ int fill_default_options(cpbuild_options_t*opt)
 		else
 			memcpy(opt->compilerpp,cpb_default_option_list+3,4);
 	}
+	opt->objdir=opt->objdir==NULL?".":opt->objdir;
 	return succ;
 }

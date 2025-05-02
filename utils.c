@@ -1,6 +1,7 @@
 #include<dirent.h>
 #include<fcntl.h>
 #include<linux/limits.h>
+#include <stddef.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -111,10 +112,16 @@ char strcontains(const char *strlist, const char *str)
 	}
 	return found;
 }
-char *changeext(const char *og, const char *ext)
+char*changeext_add_prefix(const char*og,const char*prefix,const char*ext)
 {
-	const char *period = strrchr(og, '.');
-	period = period == NULL ? og : period;
-	size_t len = period - og, extlen = strlen(ext);
-	return strcpy((char*)memcpy(malloc(len + extlen + 2), og, len + 1) + len + 1, ext) - len - 1;
+	const char*period=strrchr(og,'.');
+	period=period==NULL?og:period;
+	size_t len=period-og,extlen=strlen(ext);
+	size_t plen=strlen(prefix);
+	int addslash=prefix[plen-1]!='/';
+	char*updated=malloc(plen+len+extlen+addslash+2);
+	memcpy(updated,prefix,plen);
+	if(addslash)
+		updated[plen++]='/';
+	return strcpy((char*)memcpy(updated+plen,og,len+1)+len+1,ext)-plen-len-1;
 }
