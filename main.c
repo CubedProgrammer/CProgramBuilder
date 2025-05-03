@@ -20,6 +20,16 @@ int main(int argl,char**argv)
 			nxtarg=0;
 		switch(nxtarg)
 		{
+			case 7:
+				defops.compilerpp=malloc(strlen(arg)+1);
+				strcpy(defops.compilerpp,arg);
+				--nxtcnt;
+				break;
+			case 6:
+				defops.compiler=malloc(strlen(arg)+1);
+				strcpy(defops.compiler,arg);
+				--nxtcnt;
+				break;
 			case 5:
 				defops.objdir = arg;
 				--nxtcnt;
@@ -65,6 +75,18 @@ int main(int argl,char**argv)
 						case'o':
 							nxtarg = 5;
 							nxtcnt = 1;
+							break;
+						case'-':
+							if(strcmp(arg+1,"cc")==0)
+							{
+								nxtarg=6;
+								nxtcnt=1;
+							}
+							else if(strcmp(arg+1,"c++")==0)
+							{
+								nxtarg=7;
+								nxtcnt=1;
+							}
 							break;
 						default:
 							fprintf(stderr,"Unrecognized option %c will be ignored.\n",*arg);
