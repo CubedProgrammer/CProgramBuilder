@@ -1,6 +1,7 @@
 #ifndef Included_cpbuild_h
 #define Included_cpbuild_h
 #define BOOLOPS_FORCE 1
+#define BOOLOPS_DISPLAY_COMMAND 2
 struct program_options
 {
 	char**options;

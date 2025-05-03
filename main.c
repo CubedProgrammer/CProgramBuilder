@@ -59,6 +59,9 @@ int main(int argl,char**argv)
 						case'f':
 							defops.boolops |= BOOLOPS_FORCE;
 							break;
+						case's':
+							defops.boolops|=BOOLOPS_DISPLAY_COMMAND;
+							break;
 						case'o':
 							nxtarg = 5;
 							nxtcnt = 1;

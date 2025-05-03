@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -55,7 +56,19 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 		}
 	}
 	if(append_program_arg(&opt->linkerargs, NULL)==0)
+	{
+		if((opt->boolops&BOOLOPS_DISPLAY_COMMAND)==BOOLOPS_DISPLAY_COMMAND)
+		{
+			fputs(opt->linkerargs.options[0],stdout);
+			for(char**it=opt->linkerargs.options+1;it!=opt->linkerargs.options+opt->linkerargs.len-1;++it)
+			{
+				putchar(' ');
+				fputs(*it,stdout);
+			}
+			putchar('\n');
+		}
 		runprogram(opt->linkerargs.options);
+	}
 	else
 		succ=-1;
 	for(unsigned short i=opt->linkerops.len+3;i<opt->linkerargs.len-1;++i)
@@ -101,6 +114,16 @@ int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
 			args[len + 3] = outputop;
 			args[len + 4] = outfile;
 			args[len + 5] = NULL;
+			if((opt->boolops&BOOLOPS_DISPLAY_COMMAND)==BOOLOPS_DISPLAY_COMMAND)
+			{
+				fputs(args[0],stdout);
+				for(char**it=args+1;it!=args+len+5;++it)
+				{
+					putchar(' ');
+					fputs(*it,stdout);
+				}
+				putchar('\n');
+			}
 			succ=runprogram(args);
 			free(args);
 		}
