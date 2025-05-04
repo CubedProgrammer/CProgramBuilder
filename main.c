@@ -2,7 +2,6 @@
 #include<stdlib.h>
 #include<string.h>
 #include"cpbuild.h"
-#include"utils.h"
 int main(int argl,char**argv)
 {
 	struct cpbuild_options defops;

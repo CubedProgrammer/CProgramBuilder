@@ -8,7 +8,7 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include<unistd.h>
-void iterate_directory(const char*dirname,void(*func)(const char*,void*),void*arg)
+void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),void*arg)
 {
 	DIR *dirhand = opendir(dirname);
 	if(dirhand == NULL)
@@ -54,10 +54,11 @@ void iterate_directory(const char*dirname,void(*func)(const char*,void*),void*ar
 						}
 						else
 							++depth;
+						func(currdir,arg,1);
 					}
 					else
 					{
-						func(currdir, arg);
+						func(currdir,arg,0);
 						for(; dirlen > 0 && currdir[dirlen] != '/'; --dirlen);
 						currdir[dirlen] = '\0';
 					}
@@ -114,14 +115,17 @@ char strcontains(const char *strlist, const char *str)
 }
 char*changeext_add_prefix(const char*og,const char*prefix,const char*ext)
 {
-	const char*period=strrchr(og,'.');
-	period=period==NULL?og:period;
-	size_t len=period-og,extlen=strlen(ext);
+	size_t len=strlen(og);
+	const char*period;
+	for(period=og+len;period!=og&&period[-1]!='.'&&period[-1]!='/';--period);
+	period=period==og||period[-1]=='/'?og+len:period;
+	len=period-og;
+	size_t extlen=strlen(ext);
 	size_t plen=strlen(prefix);
 	int addslash=prefix[plen-1]!='/';
-	char*updated=malloc(plen+len+extlen+addslash+2);
+	char*updated=malloc(plen+len+extlen+addslash+1);
 	memcpy(updated,prefix,plen);
 	if(addslash)
 		updated[plen++]='/';
-	return strcpy((char*)memcpy(updated+plen,og,len+1)+len+1,ext)-plen-len-1;
+	return strcpy((char*)memcpy(updated+plen,og,len)+len,ext)-plen-len;
 }

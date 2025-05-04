@@ -1,4 +1,4 @@
-#include <stddef.h>
+#include<stddef.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -8,12 +8,25 @@
 #include"utils.h"
 const char cpb_default_option_list[] = "cc\0c++";
 const char cpb_accepted_extensions[] = "c\0c++\0cpp\0cxx\0";
-void build_callback(const char *file, void *arg)
+void build_callback(const char*file,void*arg,int isdir)
 {
-	struct cpbuild_options *opt = arg;
-	char *periodptr = strrchr(file, '.');
-	size_t len = strlen(file);
-	if(strcontains(cpb_accepted_extensions, periodptr + 1))
+	struct cpbuild_options*opt=arg;
+	char*periodptr=strrchr(file,'.');
+	size_t len=strlen(file);
+	if(isdir)
+	{
+		struct stat objdat,dirdat;
+		int ores=stat(opt->objdir,&objdat);
+		int dres=stat(file,&dirdat);
+		int same=ores==0&&dres==0&&objdat.st_dev==dirdat.st_dev&&objdat.st_ino==dirdat.st_ino;
+		if(!same)
+		{
+			char*target=changeext_add_prefix(file,opt->objdir,"");
+			mkdir(target,0755);
+			free(target);
+		}
+	}
+	else if(strcontains(cpb_accepted_extensions,periodptr+1))
 	{
 		char *filename = malloc(len + 1), *objname = changeext_add_prefix(file, opt->objdir, "o");
 		if(objname == NULL || filename == NULL)
@@ -31,19 +44,26 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 {
 	int succ=0;
 	struct stat fdat;
-	char outputop[] = "-o";
+	char outputop[]="-o";
+	size_t objdirlen=strlen(opt->objdir),filelen;
+	char*target;
 	init_program_args(&opt->linkerargs,opt->linkerops.len+3);
 	opt->linkerargs.options[0]=opt->compiler;
 	opt->linkerargs.options[1]=outputop;
 	opt->linkerargs.options[2]=opt->artifact;
 	memcpy(opt->linkerargs.options + 3, opt->linkerops.options, sizeof(char*) * opt->linkerops.len);
 	opt->linkerargs.len=opt->linkerops.len+3;
-	for(char **it = targets; *it != NULL; ++it)
+	for(char**it=targets;*it!=NULL;++it)
 	{
-		if(stat(*it, &fdat))
+		if(stat(*it,&fdat))
 			perror("stat failed");
 		else if(S_ISDIR(fdat.st_mode))
-			iterate_directory(*it, &build_callback, opt);
+		{
+			target=changeext_add_prefix(*it,opt->objdir,"");
+			mkdir(target,0755);
+			free(target);
+			iterate_directory(*it,&build_callback,opt);
+		}
 		else
 		{
 			if(append_program_arg(&opt->linkerargs, changeext_add_prefix(*it, opt->objdir, "o")) == 0)
