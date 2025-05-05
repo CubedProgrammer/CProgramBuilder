@@ -1,3 +1,4 @@
+#include<stddef.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -110,8 +111,60 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 	}
 	return it;
 }
-void read_config(struct cpbuild_options*options,const char*fname)
-{}
+char*read_config(const char*fname)
+{
+	char*content=NULL;
+	char*new;
+	size_t len=0;
+	size_t capa=0;
+	size_t nc;
+	FILE*fhandle=fopen(fname,"rb");
+	int c=0;
+	if(fhandle!=NULL)
+	{
+		while(content!=NULL&&c!=-1)
+		{
+			c=getchar();
+			if(len==capa)
+			{
+				nc=capa+(capa>>1);
+				nc+=nc==capa;
+				new=realloc(content,nc);
+				if(new==NULL)
+					free(content);
+				else
+					capa=nc;
+				content=new;
+			}
+			if(content!=NULL)
+			{
+				if(c=='\n'||c==-1)
+					c=0;
+				content[len++]=c;
+			}
+		}
+		fclose(fhandle);
+	}
+	if(len==1)
+	{
+		free(content);
+		content=NULL;
+	}
+	else if(content[len-2]!='\0'||capa!=len)
+	{
+		new=realloc(content,len+=content[len-2]!='\0');
+		if(new==NULL)
+		{
+			free(content);
+			content=NULL;
+		}
+		else
+			content=new;
+		if(content!=NULL)
+			content[len-1]='\0';
+	}
+	return content;
+}
 char**parse_args(int argl,char**argv,struct cpbuild_options*options)
 {
 	return parse_help(options,argv,argv+argl,1);
