@@ -3,6 +3,39 @@
 #include<stdlib.h>
 #include<string.h>
 #include"config.h"
+char**make_string_array(char*array,size_t*len)
+{
+	const char*last=array;
+	*len=0;
+	int ended=0;
+	for(const char*it=array;!ended;++it)
+	{
+		if(*it=='\0')
+		{
+			ended=last==it;
+			last=it+1;
+			++*len;
+		}
+	}
+	--*len;
+	char**stringarray=malloc(*len*sizeof(char*));
+	if(stringarray!=NULL)
+	{
+		size_t salen=0;
+		--last;
+		stringarray[0]=array;
+		for(char*it=array;it!=last;++it)
+		{
+			if(*it=='\0')
+			{
+				++salen;
+				if(salen<*len)
+					stringarray[salen]=it+1;
+			}
+		}
+	}
+	return stringarray;
+}
 char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 {
 	unsigned nxtarg=0,nxtcnt=0;
