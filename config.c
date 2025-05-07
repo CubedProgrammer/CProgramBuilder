@@ -3,6 +3,38 @@
 #include<stdlib.h>
 #include<string.h>
 #include"config.h"
+struct string_data
+{
+	char*carray;
+	char**cparray;
+	size_t cplen;
+};
+struct string_data_array
+{
+	struct string_data*data;
+	size_t len;
+	size_t capa;
+};
+int append_data_array(struct string_data_array*array,const struct string_data*data)
+{
+	int failed=0;
+	if(array->capa==array->len)
+	{
+		size_t capa=array->capa+(array->capa>>1);
+		struct string_data*new=malloc(capa*sizeof(struct string_data));
+		failed=1;
+		if(new!=NULL)
+		{
+			memcpy(new,array->data,array->len*sizeof(struct string_data));
+			free(array->data);
+			array->data=new;
+			failed=0;
+		}
+	}
+	if(!failed)
+		array->data[array->len++]=*data;
+	return failed;
+}
 char**make_string_array(char*array,size_t*len)
 {
 	const char*last=array;
@@ -41,6 +73,8 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 	unsigned nxtarg=0,nxtcnt=0;
 	char*arg,*artifact=NULL;
 	struct program_options*currops=NULL;
+	struct string_data_array stack={malloc(2*sizeof(struct string_data)),0,1};
+	struct string_data dat;
 	char**it;
 	for(it=first;it!=last;++it)
 	{
@@ -49,6 +83,17 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 			nxtarg=0;
 		switch(nxtarg)
 		{
+			case 8:
+				dat.carray=read_config(arg);
+				if(dat.carray!=NULL)
+				{
+					dat.cparray=make_string_array(dat.carray, &dat.cplen);
+					if(dat.cparray!=NULL)
+					{
+					}
+				}
+				--nxtcnt;
+				break;
 			case 7:
 				options->compilerpp=malloc(strlen(arg)+1);
 				strcpy(options->compilerpp,arg);
@@ -92,18 +137,21 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 						case'L':
 							nxtarg=4;
 							break;
+						case'b':
+							nxtarg=8;
+							break;
 						case'c':
 							nxtarg=2;
 							break;
 						case'f':
 							options->boolops |= BOOLOPS_FORCE;
 							break;
-						case's':
-							options->boolops|=BOOLOPS_DISPLAY_COMMAND;
-							break;
 						case'o':
 							nxtarg = 5;
 							nxtcnt = 1;
+							break;
+						case's':
+							options->boolops|=BOOLOPS_DISPLAY_COMMAND;
 							break;
 						case'-':
 							if(strcmp(arg+1,"cc")==0)
