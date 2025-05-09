@@ -7,6 +7,7 @@ struct string_data
 {
 	char*carray;
 	char**cparray;
+	char**it;
 	size_t cplen;
 };
 struct string_data_array
@@ -73,12 +74,16 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 	unsigned nxtarg=0,nxtcnt=0;
 	char*arg,*artifact=NULL;
 	struct program_options*currops=NULL;
-	struct string_data_array stack={malloc(2*sizeof(struct string_data)),0,1};
+	struct string_data_array stack={malloc(2*sizeof(struct string_data)),0,2};
 	struct string_data dat;
-	char**it;
-	for(it=first;it!=last;++it)
+	char moveiter=0;
+	char**baseit=first;
+	char**it=baseit;
+	while(baseit!=last)
 	{
 		arg=*it;
+		printf("%p %u %u %p\n",last,nxtarg,nxtcnt,it);
+		puts(arg);
 		if(nxtcnt==0)
 			nxtarg=0;
 		switch(nxtarg)
@@ -90,8 +95,22 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 					dat.cparray=make_string_array(dat.carray, &dat.cplen);
 					if(dat.cparray!=NULL)
 					{
+						dat.it=dat.cparray;
+						if(!append_data_array(&stack,&dat))
+						{
+							moveiter=1;
+						}
+						else
+							fprintf(stderr,"Failed to allocate memory for stack at capacity %zu\n",stack.capa);
+					}
+					else
+					{
+						free(dat.carray);
+						dat.carray=NULL;
 					}
 				}
+				if(dat.carray==NULL)
+					fprintf(stderr,"Processing file %s failed, could not allocate memory.\n",arg);
 				--nxtcnt;
 				break;
 			case 7:
@@ -139,6 +158,7 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 							break;
 						case'b':
 							nxtarg=8;
+							nxtcnt=1;
 							break;
 						case'c':
 							nxtarg=2;
@@ -147,8 +167,8 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 							options->boolops |= BOOLOPS_FORCE;
 							break;
 						case'o':
-							nxtarg = 5;
-							nxtcnt = 1;
+							nxtarg=5;
+							nxtcnt=1;
 							break;
 						case's':
 							options->boolops|=BOOLOPS_DISPLAY_COMMAND;
@@ -189,23 +209,40 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 			it+=currops->len-1;
 			currops=NULL;
 		}
+		if(!moveiter)
+		{
+			while(stack.len>0&&++stack.data[stack.len-1].it==stack.data[stack.len-1].cparray+stack.data[stack.len-1].cplen)
+			{
+				--stack.len;
+				free(stack.data[stack.len].cparray);
+				free(stack.data[stack.len].carray);
+			}
+		}
+		moveiter=0;
+		if(stack.len==0)
+		{
+			++baseit;
+			it=baseit;
+		}
+		else
+			it=stack.data[stack.len-1].it;
 	}
-	return it;
+	return baseit;
 }
 char*read_config(const char*fname)
 {
-	char*content=NULL;
+	char*content=malloc(1);
 	char*new;
 	size_t len=0;
-	size_t capa=0;
+	size_t capa=1;
 	size_t nc;
 	FILE*fhandle=fopen(fname,"rb");
-	int c=0;
+	int c=0,d=0;
 	if(fhandle!=NULL)
 	{
 		while(content!=NULL&&c!=-1)
 		{
-			c=getchar();
+			c=fgetc(fhandle);
 			if(len==capa)
 			{
 				nc=capa+(capa>>1);
@@ -219,9 +256,10 @@ char*read_config(const char*fname)
 			}
 			if(content!=NULL)
 			{
+				d=c;
 				if(c=='\n'||c==-1)
-					c=0;
-				content[len++]=c;
+					d=0;
+				content[len++]=d;
 			}
 		}
 		fclose(fhandle);
@@ -236,7 +274,6 @@ char*read_config(const char*fname)
 		new=realloc(content,len+=content[len-2]!='\0');
 		if(new==NULL)
 		{
-			free(content);
 			content=NULL;
 		}
 		else
