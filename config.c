@@ -3,6 +3,11 @@
 #include<stdlib.h>
 #include<string.h>
 #include"config.h"
+struct allocated_file_data
+{
+	char*a;
+	char**b;
+};
 struct string_data
 {
 	char*carray;
@@ -16,6 +21,51 @@ struct string_data_array
 	size_t len;
 	size_t capa;
 };
+struct allocated_file_data*global_file_data;
+size_t global_file_len;
+size_t global_file_cap;
+int initialize_global_file_data(void)
+{
+	int failed=1;
+	global_file_data=malloc(2*sizeof(*global_file_data));
+	if(global_file_data)
+	{
+		global_file_cap=2;
+		failed=0;
+	}
+	return failed;
+}
+int append_global_file_data(const struct allocated_file_data*item)
+{
+	int failed=0;
+	if(global_file_len==global_file_cap)
+	{
+		size_t capacity=global_file_cap+(global_file_cap>>1);
+		struct allocated_file_data*new=realloc(global_file_data,sizeof(*global_file_data));
+		if(new!=NULL)
+		{
+			global_file_data=new;
+			global_file_cap=capacity;
+		}
+		else
+			failed=1;
+	}
+	if(!failed)
+		global_file_data[global_file_len++]=*item;
+	return failed;
+}
+void free_global_file_data(void)
+{
+	for(struct allocated_file_data*it=global_file_data;it!=global_file_data+global_file_len;++it)
+	{
+		free(it->a);
+		free(it->b);
+	}
+	free(global_file_data);
+	global_file_data=NULL;
+	global_file_len=0;
+	global_file_cap=0;
+}
 int append_data_array(struct string_data_array*array,const struct string_data*data)
 {
 	int failed=0;
