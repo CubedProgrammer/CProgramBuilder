@@ -3,11 +3,6 @@
 #include<stdlib.h>
 #include<string.h>
 #include"config.h"
-struct allocated_file_data
-{
-	char*a;
-	char**b;
-};
 struct string_data
 {
 	char*carray;
@@ -122,18 +117,17 @@ char**make_string_array(char*array,size_t*len)
 char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 {
 	unsigned nxtarg=0,nxtcnt=0;
-	char*arg,*artifact=NULL;
+	char*arg;
 	struct program_options*currops=NULL;
 	struct string_data_array stack={malloc(2*sizeof(struct string_data)),0,2};
 	struct string_data dat;
+	struct allocated_file_data pointers;
 	char moveiter=0;
 	char**baseit=first;
 	char**it=baseit;
 	while(baseit!=last)
 	{
 		arg=*it;
-		printf("%p %u %u %p\n",last,nxtarg,nxtcnt,it);
-		puts(arg);
 		if(nxtcnt==0)
 			nxtarg=0;
 		switch(nxtarg)
@@ -146,12 +140,28 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 					if(dat.cparray!=NULL)
 					{
 						dat.it=dat.cparray;
-						if(!append_data_array(&stack,&dat))
+						pointers.a=dat.carray;
+						pointers.b=dat.cparray;
+						if(!append_global_file_data(&pointers))
 						{
-							moveiter=1;
+							if(!append_data_array(&stack,&dat))
+							{
+								moveiter=1;
+							}
+							else
+							{
+								fprintf(stderr,"Failed to allocate memory for stack at capacity %zu\n",stack.capa);
+								--global_file_len;
+								free(pointers.b);
+								free(pointers.a);
+							}
 						}
 						else
-							fprintf(stderr,"Failed to allocate memory for stack at capacity %zu\n",stack.capa);
+						{
+							fprintf(stderr,"Failed to allocate memory for global array at capacity %zu\n", global_file_cap);
+							free(pointers.b);
+							free(pointers.a);
+						}
 					}
 					else
 					{
@@ -164,13 +174,11 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 				--nxtcnt;
 				break;
 			case 7:
-				options->compilerpp=malloc(strlen(arg)+1);
-				strcpy(options->compilerpp,arg);
+				options->compilerpp=arg;
 				--nxtcnt;
 				break;
 			case 6:
-				options->compiler=malloc(strlen(arg)+1);
-				strcpy(options->compiler,arg);
+				options->compiler=arg;
 				--nxtcnt;
 				break;
 			case 5:
@@ -187,7 +195,7 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 				currops=&options->compilerops;
 				break;
 			case 1:
-				artifact=options->artifact=arg;
+				options->artifact=arg;
 				--nxtcnt;
 				break;
 			default:
@@ -214,7 +222,7 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 							nxtarg=2;
 							break;
 						case'f':
-							options->boolops |= BOOLOPS_FORCE;
+							options->boolops|=BOOLOPS_FORCE;
 							break;
 						case'o':
 							nxtarg=5;
@@ -247,8 +255,8 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 							nxtcnt=atoi(arg+1);
 					}
 				}
-				else
-					last=it--;
+				else if(stack.len==0)
+					last=baseit--;
 				break;
 		}
 		if(currops!=NULL)
@@ -256,7 +264,12 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 			currops->options=it;
 			currops->len=nxtcnt;
 			nxtcnt=0;
-			it+=currops->len-1;
+			if(stack.len==0)
+			{
+				baseit+=currops->len-1;
+			}
+			else
+				stack.data[stack.len-1].it+=currops->len-1;
 			currops=NULL;
 		}
 		if(!moveiter)
@@ -264,8 +277,6 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 			while(stack.len>0&&++stack.data[stack.len-1].it==stack.data[stack.len-1].cparray+stack.data[stack.len-1].cplen)
 			{
 				--stack.len;
-				free(stack.data[stack.len].cparray);
-				free(stack.data[stack.len].carray);
 			}
 		}
 		moveiter=0;

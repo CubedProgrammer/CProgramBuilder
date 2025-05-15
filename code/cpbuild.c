@@ -29,8 +29,14 @@ void build_callback(const char*file,void*arg,int isdir)
 	else if(strcontains(cpb_accepted_extensions,periodptr+1))
 	{
 		char *filename = malloc(len + 1), *objname = changeext_add_prefix(file, opt->objdir, "o");
-		if(objname == NULL || filename == NULL)
-			perror("malloc failed");
+		if(objname==NULL||filename==NULL)
+		{
+			perror("objname or filename is NULL, malloc failed");
+			if(objname!=NULL)
+				free(objname);
+			if(filename!=NULL)
+				free(filename);
+		}
 		else
 		{
 			memcpy(filename, file, len + 1);
@@ -45,7 +51,6 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 	int succ=0;
 	struct stat fdat;
 	char outputop[]="-o";
-	size_t objdirlen=strlen(opt->objdir),filelen;
 	char*target;
 	init_program_args(&opt->linkerargs,opt->linkerops.len+3);
 	opt->linkerargs.options[0]=opt->compiler;
@@ -193,7 +198,7 @@ int fill_default_options(cpbuild_options_t*opt)
 			succ=-1;
 		else
 		{
-			unsigned off=0,len;
+			unsigned off=0,len=1;
 			for(const char*it=cbuf;*it!='\0';++len,++it)
 			{
 				if(*it=='/')
