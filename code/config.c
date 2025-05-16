@@ -128,7 +128,7 @@ void help_screen(const char*program)
 	puts("-o DIRECTORY: Put the object files into this directory instead of the PWD.");
 	puts("-s: Show commands being executed on the screen.");
 	puts("--cc PROGRAM: Specifies the C compiler.");
-	puts("--c++: Specifies the C++ compiler.");
+	puts("--c++ PROGRAM: Specifies the C++ compiler.");
 }
 char**parse_help(const char*name,struct cpbuild_options*options,char**first,char**last)
 {
@@ -138,10 +138,10 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 	struct string_data_array stack={malloc(2*sizeof(struct string_data)),0,2};
 	struct string_data dat;
 	struct allocated_file_data pointers;
-	char moveiter=0;
+	char moveiter=0,helped=0;
 	char**baseit=first;
 	char**it=baseit;
-	while(baseit!=last)
+	while(baseit!=last&&!helped)
 	{
 		arg=*it;
 		if(nxtcnt==0)
@@ -258,9 +258,10 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 								nxtarg=7;
 								nxtcnt=1;
 							}
-							else if(strcmp(arg+1,"--help")==0)
+							else if(strcmp(arg+1,"help")==0)
 							{
 								help_screen(name);
+								helped=1;
 							}
 							break;
 						default:
@@ -308,6 +309,11 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 		else
 			it=stack.data[stack.len-1].it;
 	}
+	if(helped)
+	{
+		baseit=NULL;
+	}
+	free(stack.data);
 	return baseit;
 }
 char*read_config(const char*fname)

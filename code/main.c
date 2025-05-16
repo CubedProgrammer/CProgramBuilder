@@ -1,6 +1,7 @@
-#include <stdio.h>
+#include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include<unistd.h>
 #include"config.h"
 #include"cpbuild.h"
 int main(int argl,char**argv)
@@ -12,10 +13,49 @@ int main(int argl,char**argv)
 	if(succ==0)
 	{
 		memset(&defops,0,sizeof defops);
-		char**argstart=parse_args(argv[0],argl-1,argv+1,&defops);
-		int freearti=defops.artifact==NULL;
-		fill_default_options(&defops);
-		succ=argstart==argv+argl?cpbuild(thisdirp,&defops):cpbuild(argstart,&defops);
+		char**argstart=argv+1;
+		char**oldstart=argstart;
+		char*conffile=NULL;
+		char*emptyargs[]={"-b",conffile,NULL};
+		int freearti=1;
+		if(argl==1)
+		{
+			fill_default_options(&defops);
+			size_t artilen=strlen(defops.artifact);
+			conffile=malloc(artilen + 6);
+			if(conffile!=NULL)
+			{
+				memcpy(conffile,defops.artifact,artilen);
+				memcpy(conffile+artilen,".conf",6);
+				emptyargs[1]=conffile;
+				if(access(conffile,F_OK)==0)
+				{
+					oldstart=argstart=emptyargs;
+					argl=2;
+				}
+				else
+					--argl;
+			}
+		}
+		else
+		{
+			--argl;
+			argstart=parse_args(argv[0],argl,argstart,&defops);
+			freearti=defops.artifact==NULL;
+			if(fill_default_options(&defops))
+			{
+				perror("fill_default_options failed:");
+				argstart=NULL;
+			}
+		}
+		if(argstart!=NULL)
+		{
+			succ=argstart==oldstart+argl?cpbuild(thisdirp,&defops):cpbuild(argstart,&defops);
+		}
+		if(conffile!=NULL)
+		{
+			free(conffile);
+		}
 		if(freearti)
 			free(defops.artifact);
 		free_global_file_data();
