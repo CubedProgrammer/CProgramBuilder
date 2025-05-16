@@ -1,7 +1,7 @@
 #include<dirent.h>
 #include<fcntl.h>
 #include<linux/limits.h>
-#include <stddef.h>
+#include<stddef.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -67,23 +67,30 @@ void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),voi
 		}
 	}
 }
-int runprogram(char*const*args)
+int runprogram(unsigned char maxi,char*const*args)
 {
+	static unsigned char running=0;
 	int fds[2];
-	int status, succ = -1;
-	char ch = 13;
+	int status,succ=-1;
+	char ch=13;
 	const char*program=args[0];
-	int pid = fork();
-	if(pipe(fds) < 0)
+	int pid=fork();
+	if(pipe(fds)<0)
 		perror("pipe failed");
-	else if(pid > 0)
+	else if(pid>0)
 	{
 		close(fds[1]);
-		waitpid(pid, &status, 0);
-		if(read(fds[0], &ch, sizeof ch) <= 0)
+		if(read(fds[0],&ch,sizeof ch)<=0)
 		{
-			close(fds[0]);
-			succ = WEXITSTATUS(status);
+			++running;
+			succ=0;
+		}
+		close(fds[0]);
+		if(running==maxi)
+		{
+			wait(&status);
+			--running;
+			for(;waitpid(-1,&status,WNOHANG)>0;--running);
 		}
 	}
 	else if(pid < 0)
@@ -128,4 +135,8 @@ char*changeext_add_prefix(const char*og,const char*prefix,const char*ext)
 	if(addslash)
 		updated[plen++]='/';
 	return strcpy((char*)memcpy(updated+plen,og,len)+len,ext)-plen-len;
+}
+void wait_children(void)
+{
+	while(wait(NULL)>0);
 }

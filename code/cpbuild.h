@@ -18,6 +18,7 @@ struct cpbuild_options
 	char*artifact;
 	char*compiler,*compilerpp;
 	char*objdir;
+	unsigned char parallel;
 	struct program_options compilerops,compilerppops;
 	struct program_options linkerops;
 	struct program_args linkerargs;

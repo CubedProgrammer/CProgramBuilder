@@ -6,8 +6,8 @@
 #include<unistd.h>
 #include"cpbuild.h"
 #include"utils.h"
-const char cpb_default_option_list[] = "cc\0c++";
-const char cpb_accepted_extensions[] = "c\0c++\0cpp\0cxx\0";
+const char cpb_default_option_list[]="cc\0c++";
+const char cpb_accepted_extensions[]="c\0c++\0cpp\0cxx\0";
 void build_callback(const char*file,void*arg,int isdir)
 {
 	struct cpbuild_options*opt=arg;
@@ -46,7 +46,7 @@ void build_callback(const char*file,void*arg,int isdir)
 		}
 	}
 }
-int cpbuild(char **targets, struct cpbuild_options *opt)
+int cpbuild(char**targets, struct cpbuild_options*opt)
 {
 	int succ=0;
 	struct stat fdat;
@@ -92,7 +92,8 @@ int cpbuild(char **targets, struct cpbuild_options *opt)
 			}
 			putchar('\n');
 		}
-		runprogram(opt->linkerargs.options);
+		wait_children();
+		runprogram(opt->parallel,opt->linkerargs.options);
 	}
 	else
 		succ=-1;
@@ -149,7 +150,7 @@ int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
 				}
 				putchar('\n');
 			}
-			succ=runprogram(args);
+			succ=runprogram(opt->parallel,args);
 			free(args);
 		}
 	}
@@ -194,7 +195,7 @@ int fill_default_options(cpbuild_options_t*opt)
 	char cbuf[4096];
 	if(opt->artifact==NULL)
 	{
-		if(realpath(".", cbuf)==NULL)
+		if(realpath(".",cbuf)==NULL)
 			succ=-1;
 		else
 		{
@@ -230,6 +231,7 @@ int fill_default_options(cpbuild_options_t*opt)
 		else
 			memcpy(opt->compilerpp,cpb_default_option_list+3,4);
 	}
+	opt->parallel=opt->parallel<1?1:opt->parallel;
 	opt->objdir=opt->objdir==NULL?".":opt->objdir;
 	return succ;
 }

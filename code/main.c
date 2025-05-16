@@ -4,6 +4,7 @@
 #include<unistd.h>
 #include"config.h"
 #include"cpbuild.h"
+#include"utils.h"
 int main(int argl,char**argv)
 {
 	struct cpbuild_options defops;
@@ -32,9 +33,8 @@ int main(int argl,char**argv)
 				{
 					oldstart=argstart=emptyargs;
 					argl=2;
+					argstart=parse_args(argv[0],argl,argstart,&defops);
 				}
-				else
-					--argl;
 			}
 		}
 		else
@@ -50,7 +50,12 @@ int main(int argl,char**argv)
 		}
 		if(argstart!=NULL)
 		{
-			succ=argstart==oldstart+argl?cpbuild(thisdirp,&defops):cpbuild(argstart,&defops);
+			if(argstart==oldstart+argl)
+			{
+				argstart=thisdirp;
+			}
+			succ=cpbuild(argstart,&defops);
+			wait_children();
 		}
 		if(conffile!=NULL)
 		{

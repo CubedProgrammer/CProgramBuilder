@@ -240,6 +240,9 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 						case'f':
 							options->boolops|=BOOLOPS_FORCE;
 							break;
+						case'j':
+							options->parallel=atoi(arg+1);
+							break;
 						case'o':
 							nxtarg=5;
 							nxtcnt=1;
