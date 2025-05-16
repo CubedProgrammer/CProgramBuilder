@@ -12,7 +12,7 @@ int main(int argl,char**argv)
 	if(succ==0)
 	{
 		memset(&defops,0,sizeof defops);
-		char**argstart=parse_args(argl-1,argv+1,&defops);
+		char**argstart=parse_args(argv[0],argl-1,argv+1,&defops);
 		int freearti=defops.artifact==NULL;
 		fill_default_options(&defops);
 		succ=argstart==argv+argl?cpbuild(thisdirp,&defops):cpbuild(argstart,&defops);

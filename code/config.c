@@ -114,7 +114,23 @@ char**make_string_array(char*array,size_t*len)
 	}
 	return stringarray;
 }
-char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
+void help_screen(const char*program)
+{
+	printf("USAGE: %s [OPTIONS...] FILES...\n\n",program);
+	puts("Options MUST come before the files and directories to be compiled.");
+	puts("Unless a file is specific to the option, then it must come immediately after said option.");
+	puts("-A: path to artifact to be built, the final executable file or shared object file.");
+	puts("-C{N}: Command line arguments to be passed to the C++ compiler, N arguments must come after this.");
+	puts("-L{N}: Linker arguments, N arguments must come after this.");
+	puts("-b FILE: Load extra options from a file, the file must list exact one argument per line.");
+	puts("-c{N}: Command line arguments to be passed to the C compiler, N arguments must come after this.");
+	puts("-f: Force compilation, do not ignore files that have not been updated.");
+	puts("-o DIRECTORY: Put the object files into this directory instead of the PWD.");
+	puts("-s: Show commands being executed on the screen.");
+	puts("--cc PROGRAM: Specifies the C compiler.");
+	puts("--c++: Specifies the C++ compiler.");
+}
+char**parse_help(const char*name,struct cpbuild_options*options,char**first,char**last)
 {
 	unsigned nxtarg=0,nxtcnt=0;
 	char*arg;
@@ -242,6 +258,10 @@ char**parse_help(struct cpbuild_options*options,char**first,char**last,int deep)
 								nxtarg=7;
 								nxtcnt=1;
 							}
+							else if(strcmp(arg+1,"--help")==0)
+							{
+								help_screen(name);
+							}
 							break;
 						default:
 							fprintf(stderr,"Unrecognized option %c will be ignored.\n",*arg);
@@ -344,7 +364,7 @@ char*read_config(const char*fname)
 	}
 	return content;
 }
-char**parse_args(int argl,char**argv,struct cpbuild_options*options)
+char**parse_args(const char*name,int argl,char**argv,struct cpbuild_options*options)
 {
-	return parse_help(options,argv,argv+argl,1);
+	return parse_help(name,options,argv,argv+argl);
 }
