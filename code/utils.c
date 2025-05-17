@@ -8,6 +8,7 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include<unistd.h>
+#include"utils.h"
 void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),void*arg)
 {
 	DIR *dirhand = opendir(dirname);
@@ -135,6 +136,48 @@ char*changeext_add_prefix(const char*og,const char*prefix,const char*ext)
 	if(addslash)
 		updated[plen++]='/';
 	return strcpy((char*)memcpy(updated+plen,og,len)+len,ext)-plen-len;
+}
+int init_vector_char(struct vector_char*this)
+{
+	int failed=1;
+	this->len=0;
+	this->cap=0;
+	this->str=malloc(16);
+	if(this->str!=NULL)
+	{
+		this->cap=1;
+		failed=0;
+	}
+	return failed;
+}
+int push_vector_char(struct vector_char*this,const char*first,const char*last)
+{
+	int failed=0;
+	if(this->len+(last-first)>this->cap)
+	{
+		unsigned nc=this->cap+(this->cap>>1);
+		nc=nc>this->len+(last-first)?nc:this->len+(last-first);
+		char*new=realloc(this->str,nc);
+		if(new==NULL)
+		{
+			failed=1;
+		}
+		else
+		{
+			this->str=new;
+			this->cap=nc;
+		}
+	}
+	if(!failed)
+	{
+		memcpy(this->str+this->len,first,last-first);
+		this->len+=last-first;
+	}
+	return failed;
+}
+void free_vector_char(struct vector_char*this)
+{
+	free(this->str);
 }
 void wait_children(void)
 {
