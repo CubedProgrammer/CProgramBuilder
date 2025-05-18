@@ -111,6 +111,52 @@ int runprogram(unsigned char maxi,char*const*args)
 	}
 	return succ;
 }
+int program_output(struct vector_char*data,char*const*args)
+{
+	int fds[2];
+	int failed=pipe(fds);
+	if(!failed)
+	{
+		int pid=fork();
+		if(pid>0)
+		{
+			int status;
+			int finished=0;
+			char buf[8192];
+			size_t buflen=sizeof(buf);
+			close(fds[1]);
+			for(size_t cnt=read(fds[0],buf,buflen);!failed&&cnt>0;cnt=read(fds[0],buf,buflen))
+			{
+				failed=push_vector_char(data,buf,buf+cnt);
+			}
+			for(;finished!=-1&&finished!=pid;finished=wait(&status));
+			if(finished!=pid)
+			{
+				failed=1;
+				perror("program_output failed: wait failed");
+			}
+			close(fds[0]);
+		}
+		else if(pid<0)
+		{
+			failed=1;
+			perror("program_output failed: fork failed");
+		}
+		else
+		{
+			dup2(fds[1],STDOUT_FILENO);
+			close(fds[0]);
+			close(fds[1]);
+			if(execvp(args[0],args))
+			{
+				perror("program_output failed: execvp failed");
+				failed=1;
+				exit(failed);
+			}
+		}
+	}
+	return failed;
+}
 char strcontains(const char *strlist, const char *str)
 {
 	char found = 0;
