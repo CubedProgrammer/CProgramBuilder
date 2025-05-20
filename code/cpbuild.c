@@ -8,6 +8,7 @@
 #include"utils.h"
 const char cpb_default_option_list[]="cc\0c++";
 const char cpb_accepted_extensions[]="c\0c++\0cpp\0cxx\0";
+char cpb_cmd_option_list[]="-c\0-o";
 void build_callback(const char*file,void*arg,int isdir)
 {
 	struct cpbuild_options*opt=arg;
@@ -46,7 +47,23 @@ void build_callback(const char*file,void*arg,int isdir)
 		}
 	}
 }
-int cpbuild(char**targets, struct cpbuild_options*opt)
+int make_command_line(struct program_options*restrict d,struct program_options*restrict s,char*compiler)
+{
+	int failed=1;
+	d->options=malloc((s->len+6)*sizeof(*d->options));
+	if(d->options!=NULL)
+	{
+		d->options[0]=compiler;
+		memcpy(d->options+1,s->options,s->len*sizeof(char*));
+		d->options[s->len+1]=cpb_cmd_option_list;
+		d->options[s->len+3]=cpb_cmd_option_list+3;
+		d->options[s->len+5]=NULL;
+		d->len=s->len+6;
+		failed=0;
+	}
+	return failed;
+}
+int cpbuild(char**targets,struct cpbuild_options*opt)
 {
 	int succ=0;
 	struct stat fdat;
@@ -125,6 +142,21 @@ int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
 			recompile = 1;
 		else if(stat(filename, &fdat) == 0)
 			recompile = fdat.st_mtime > odat.st_mtime;
+	}
+	if(!recompile)
+	{
+		struct vector_char arr;
+		if(init_vector_char(&arr))
+		{
+			perror("buildfile failed: init_vector_char failed");
+			fprintf(stderr,"Compiling %s anyways just in case.\n",filename);
+			recompile=1;
+		}
+		else
+		{
+			//int r=program_output(&arr, char *const *args);
+			free_vector_char(&arr);
+		}
 	}
 	if(recompile)
 	{
