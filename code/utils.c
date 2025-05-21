@@ -136,6 +136,7 @@ int program_output(struct vector_char*data,char*const*args)
 				perror("program_output failed: wait failed");
 			}
 			close(fds[0]);
+			failed=WEXITSTATUS(status);
 		}
 		else if(pid<0)
 		{

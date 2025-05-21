@@ -1,4 +1,6 @@
+#include<ctype.h>
 #include<stddef.h>
+#include<stdint.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -8,7 +10,13 @@
 #include"utils.h"
 const char cpb_default_option_list[]="cc\0c++";
 const char cpb_accepted_extensions[]="c\0c++\0cpp\0cxx\0";
-char cpb_cmd_option_list[]="-c\0-o";
+char cpb_cmd_option_list[]="-c\0-o\0-MM";
+int timespec_compare(const struct timespec*a,const struct timespec*b)
+{
+	long c[2]={a->tv_sec-b->tv_sec,a->tv_nsec-b->tv_nsec};
+	int64_t result=c[c[0]==0];
+	return(result>=0)+(result>0)-1;
+}
 void build_callback(const char*file,void*arg,int isdir)
 {
 	struct cpbuild_options*opt=arg;
@@ -47,7 +55,7 @@ void build_callback(const char*file,void*arg,int isdir)
 		}
 	}
 }
-int make_command_line(struct program_options*restrict d,struct program_options*restrict s,char*compiler)
+int make_command_line(struct program_options*restrict d,const struct program_options*restrict s,char*compiler)
 {
 	int failed=1;
 	d->options=malloc((s->len+6)*sizeof(*d->options));
@@ -69,79 +77,86 @@ int cpbuild(char**targets,struct cpbuild_options*opt)
 	struct stat fdat;
 	char outputop[]="-o";
 	char*target;
-	init_program_args(&opt->linkerargs,opt->linkerops.len+3);
-	opt->linkerargs.options[0]=opt->compiler;
-	opt->linkerargs.options[1]=outputop;
-	opt->linkerargs.options[2]=opt->artifact;
-	memcpy(opt->linkerargs.options + 3, opt->linkerops.options, sizeof(char*) * opt->linkerops.len);
-	opt->linkerargs.len=opt->linkerops.len+3;
-	for(char**it=targets;*it!=NULL;++it)
+	int cfail=make_command_line(&opt->ccmd,&opt->compilerops,opt->compiler);
+	int cppfail=make_command_line(&opt->cppcmd,&opt->compilerppops,opt->compilerpp);
+	if(!cfail&&!cppfail)
 	{
-		if(stat(*it,&fdat))
-			perror("stat failed");
-		else if(S_ISDIR(fdat.st_mode))
+		init_program_args(&opt->linkerargs,opt->linkerops.len+3);
+		opt->linkerargs.options[0]=opt->compiler;
+		opt->linkerargs.options[1]=outputop;
+		opt->linkerargs.options[2]=opt->artifact;
+		memcpy(opt->linkerargs.options + 3, opt->linkerops.options, sizeof(char*) * opt->linkerops.len);
+		opt->linkerargs.len=opt->linkerops.len+3;
+		for(char**it=targets;*it!=NULL;++it)
 		{
-			target=changeext_add_prefix(*it,opt->objdir,"");
-			mkdir(target,0755);
-			free(target);
-			iterate_directory(*it,&build_callback,opt);
-		}
-		else
-		{
-			if(append_program_arg(&opt->linkerargs, changeext_add_prefix(*it, opt->objdir, "o")) == 0)
-				buildfile(*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
+			if(stat(*it,&fdat))
+				perror("stat failed");
+			else if(S_ISDIR(fdat.st_mode))
+			{
+				target=changeext_add_prefix(*it,opt->objdir,"");
+				mkdir(target,0755);
+				free(target);
+				iterate_directory(*it,&build_callback,opt);
+			}
 			else
 			{
-				fprintf(stderr, "Adding %s", *it);
-				perror(" to linker array failed");
+				if(append_program_arg(&opt->linkerargs, changeext_add_prefix(*it, opt->objdir, "o")) == 0)
+					buildfile(*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
+				else
+				{
+					fprintf(stderr, "Adding %s", *it);
+					perror(" to linker array failed");
+				}
 			}
 		}
-	}
-	if(append_program_arg(&opt->linkerargs, NULL)==0)
-	{
-		if((opt->boolops&BOOLOPS_DISPLAY_COMMAND)==BOOLOPS_DISPLAY_COMMAND)
+		if(append_program_arg(&opt->linkerargs, NULL)==0)
 		{
-			fputs(opt->linkerargs.options[0],stdout);
-			for(char**it=opt->linkerargs.options+1;it!=opt->linkerargs.options+opt->linkerargs.len-1;++it)
+			if((opt->boolops&BOOLOPS_DISPLAY_COMMAND)==BOOLOPS_DISPLAY_COMMAND)
 			{
-				putchar(' ');
-				fputs(*it,stdout);
+				fputs(opt->linkerargs.options[0],stdout);
+				for(char**it=opt->linkerargs.options+1;it!=opt->linkerargs.options+opt->linkerargs.len-1;++it)
+				{
+					putchar(' ');
+					fputs(*it,stdout);
+				}
+				putchar('\n');
 			}
-			putchar('\n');
+			wait_children();
+			runprogram(opt->parallel,opt->linkerargs.options);
 		}
-		wait_children();
-		runprogram(opt->parallel,opt->linkerargs.options);
+		else
+			succ=-1;
+		for(unsigned short i=opt->linkerops.len+3;i<opt->linkerargs.len-1;++i)
+			free(opt->linkerargs.options[i]);
+		free(opt->linkerargs.options);
 	}
-	else
-		succ=-1;
-	for(unsigned short i=opt->linkerops.len+3;i<opt->linkerargs.len-1;++i)
-		free(opt->linkerargs.options[i]);
-	free(opt->linkerargs.options);
+	if(opt->cppcmd.options!=NULL)
+		free(opt->cppcmd.options);
+	if(opt->ccmd.options!=NULL)
+		free(opt->ccmd.options);
 	return succ;
 }
-int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
+int buildfile(char*filename,char*outfile,const cpbuild_options_t*opt)
 {
-	int succ = 1;
-	struct stat fdat, odat;
-	unsigned short len = opt->compilerops.len;
-	char*compiler=opt->compiler;
-	char recompile = (opt->boolops & BOOLOPS_FORCE) == BOOLOPS_FORCE;
-	char outputop[] = "-o", compileop[] = "-c";
-	char**compilerops=opt->compilerops.options;
+	int succ=1;
+	struct stat fdat,odat;
+	unsigned short len=opt->compilerops.len;
+	char**args=opt->ccmd.options;
+	char recompile=(opt->boolops&BOOLOPS_FORCE)==BOOLOPS_FORCE;
 	char*fileext=strrchr(filename,'.');
 	if(fileext!=NULL&&strcontains(cpb_accepted_extensions+2,fileext+1))
 	{
-		compiler=opt->compilerpp;
-		compilerops=opt->compilerppops.options;
+		args=opt->cppcmd.options;
 		len=opt->compilerppops.len;
 		opt->linkerargs.options[0]=opt->compilerpp;
 	}
+	args[len+2]=filename;
 	if(!recompile)
 	{
 		if(stat(outfile, &odat))
-			recompile = 1;
-		else if(stat(filename, &fdat) == 0)
-			recompile = fdat.st_mtime > odat.st_mtime;
+			recompile=1;
+		else if(stat(filename, &fdat)==0)
+			recompile=timespec_compare(&fdat.st_mtim,&odat.st_mtim)>0;
 	}
 	if(!recompile)
 	{
@@ -154,41 +169,72 @@ int buildfile(char *filename,char*outfile,const cpbuild_options_t*opt)
 		}
 		else
 		{
-			//int r=program_output(&arr, char *const *args);
+			args[len+1]=cpb_cmd_option_list+6;
+			args[len+3]=NULL;
+			int r=program_output(&arr,args);
+			if(r==0)
+			{
+				char space=1,next;
+				char*start=arr.str;
+				char*last=arr.str+arr.len;
+				char*it=arr.str;
+				for(;it!=last&&*it!=':';++it);
+				for(it+=it!=last;!recompile&&it!=last;++it)
+				{
+					next=isspace(*it)||*it=='\\';
+					if(space&&!next)
+					{
+						start=it;
+					}
+					else if(!space&&next)
+					{
+						*it='\0';
+						if(stat(start,&fdat))
+						{
+							fprintf(stderr,"buildfile failed: stat %s",start);
+							perror(" failed");
+						}
+						else
+						{
+							recompile=timespec_compare(&fdat.st_mtim,&odat.st_mtim)>0;
+						}
+					}
+					space=next;
+				}
+			}
+			else
+			{
+				fputs("Executing",stderr);
+				for(char**it=args;it!=args+len+6;++it)
+				{
+					fprintf(stderr," %s",*it);
+				}
+				fprintf(stderr," failed, recompiling %s anyways just in case.\n",filename);
+				recompile=1;
+			}
+			args[len+1]=cpb_cmd_option_list;
+			args[len+3]=cpb_cmd_option_list+3;
 			free_vector_char(&arr);
 		}
 	}
 	if(recompile)
 	{
-		char**args=malloc((len+6)*sizeof(*args));
-		if(args == NULL)
-			perror("malloc failed");
-		else
+		args[len+4]=outfile;
+		if((opt->boolops&BOOLOPS_DISPLAY_COMMAND)==BOOLOPS_DISPLAY_COMMAND)
 		{
-			args[0] = compiler;
-			args[1] = compileop;
-			memcpy(args+2,compilerops,len*sizeof(char*));
-			args[len + 2] = filename;
-			args[len + 3] = outputop;
-			args[len + 4] = outfile;
-			args[len + 5] = NULL;
-			if((opt->boolops&BOOLOPS_DISPLAY_COMMAND)==BOOLOPS_DISPLAY_COMMAND)
+			fputs(args[0],stdout);
+			for(char**it=args+1;it!=args+len+5;++it)
 			{
-				fputs(args[0],stdout);
-				for(char**it=args+1;it!=args+len+5;++it)
-				{
-					putchar(' ');
-					fputs(*it,stdout);
-				}
-				putchar('\n');
+				putchar(' ');
+				fputs(*it,stdout);
 			}
-			succ=runprogram(opt->parallel,args);
-			free(args);
+			putchar('\n');
 		}
+		succ=runprogram(opt->parallel,args);
 	}
 	return succ;
 }
-int init_program_args(struct program_args *arr, unsigned short capa)
+int init_program_args(struct program_args*arr,unsigned short capa)
 {
 	int succ = 0;
 	arr->options = malloc(capa * sizeof(*arr->options));
