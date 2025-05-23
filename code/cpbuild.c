@@ -30,14 +30,14 @@ void build_callback(const char*file,void*arg,int isdir)
 		int same=ores==0&&dres==0&&objdat.st_dev==dirdat.st_dev&&objdat.st_ino==dirdat.st_ino;
 		if(!same)
 		{
-			char*target=changeext_add_prefix(file,opt->objdir,"");
+			char*target=changeext_add_prefix(file+opt->pathshift,opt->objdir,"");
 			mkdir(target,0755);
 			free(target);
 		}
 	}
 	else if(strcontains(cpb_accepted_extensions,periodptr+1))
 	{
-		char *filename = malloc(len + 1), *objname = changeext_add_prefix(file, opt->objdir, "o");
+		char*filename=malloc(len+1),*objname=changeext_add_prefix(file+opt->pathshift,opt->objdir,"o");
 		if(objname==NULL||filename==NULL)
 		{
 			perror("objname or filename is NULL, malloc failed");
@@ -48,9 +48,9 @@ void build_callback(const char*file,void*arg,int isdir)
 		}
 		else
 		{
-			memcpy(filename, file, len + 1);
-			append_program_arg(&opt->linkerargs, objname);
-			buildfile(filename, objname, opt);
+			memcpy(filename,file,len+1);
+			append_program_arg(&opt->linkerargs,objname);
+			buildfile(filename,objname,opt);
 			free(filename);
 		}
 	}
@@ -75,19 +75,24 @@ int cpbuild(char**targets,struct cpbuild_options*opt)
 {
 	int succ=0;
 	struct stat fdat;
-	char outputop[]="-o";
 	char*target;
 	int cfail=make_command_line(&opt->ccmd,&opt->compilerops,opt->compiler);
 	int cppfail=make_command_line(&opt->cppcmd,&opt->compilerppops,opt->compilerpp);
 	if(!cfail&&!cppfail)
 	{
+		size_t targetlen=0;
 		init_program_args(&opt->linkerargs,opt->linkerops.len+3);
 		opt->linkerargs.options[0]=opt->compiler;
-		opt->linkerargs.options[1]=outputop;
+		opt->linkerargs.options[1]=cpb_cmd_option_list+3;
 		opt->linkerargs.options[2]=opt->artifact;
-		memcpy(opt->linkerargs.options + 3, opt->linkerops.options, sizeof(char*) * opt->linkerops.len);
+		memcpy(opt->linkerargs.options+3,opt->linkerops.options,sizeof(char*)*opt->linkerops.len);
 		opt->linkerargs.len=opt->linkerops.len+3;
-		for(char**it=targets;*it!=NULL;++it)
+		for(char**it=targets;*it!=NULL;++targetlen,++it);
+		if(targetlen==1)
+		{
+			opt->pathshift=strlen(targets[0])+1;
+		}
+		for(char**it=targets;it!=targets+targetlen;++it)
 		{
 			if(stat(*it,&fdat))
 				perror("stat failed");

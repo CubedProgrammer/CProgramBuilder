@@ -20,6 +20,7 @@ struct cpbuild_options
 	char*compilerpp;
 	char*objdir;
 	unsigned char parallel;
+	unsigned pathshift;
 	struct program_options compilerops,compilerppops;
 	struct program_options linkerops;
 	struct program_options ccmd,cppcmd;
