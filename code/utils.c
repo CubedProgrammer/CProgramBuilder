@@ -94,17 +94,17 @@ int runprogram(unsigned char maxi,char*const*args)
 			for(;waitpid(-1,&status,WNOHANG)>0;--running);
 		}
 	}
-	else if(pid < 0)
+	else if(pid<0)
 		perror("fork failed");
 	else
 	{
 		close(fds[0]);
-		fcntl(fds[1], F_SETFD, FD_CLOEXEC);
-		if(execvp(program, args) == -1)
+		fcntl(fds[1],F_SETFD,FD_CLOEXEC);
+		if(execvp(program, args)==-1)
 		{
-			fprintf(stderr, "Running program %s", program);
+			fprintf(stderr,"Running program %s",program);
 			perror(" failed");
-			write(fds[1], &ch, sizeof ch);
+			write(fds[1],&ch,sizeof ch);
 			close(fds[1]);
 			exit(0);
 		}
@@ -158,13 +158,13 @@ int program_output(struct vector_char*data,char*const*args)
 	}
 	return failed;
 }
-char strcontains(const char *strlist, const char *str)
+char strcontains(const char*strlist,const char*str)
 {
-	char found = 0;
-	for(size_t len = strlen(strlist); len > 0; strlist += len + 1, len = strlen(strlist))
+	char found=0;
+	for(size_t len=strlen(strlist);len>0;strlist+=len+1,len=strlen(strlist))
 	{
-		if(strcmp(strlist, str) == 0)
-			found = 1;
+		if(strcmp(strlist, str)==0)
+			found=1;
 	}
 	return found;
 }

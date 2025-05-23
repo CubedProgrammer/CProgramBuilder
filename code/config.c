@@ -19,6 +19,9 @@ struct string_data_array
 struct allocated_file_data*global_file_data;
 size_t global_file_len;
 size_t global_file_cap;
+const unsigned VERSION_MAJOR=0;
+const unsigned VERSION_MINOR=3;
+const unsigned VERSION_PATCH=2;
 int initialize_global_file_data(void)
 {
 	int failed=1;
@@ -117,6 +120,9 @@ char**make_string_array(char*array,size_t*len)
 void help_screen(const char*program)
 {
 	printf("USAGE: %s [OPTIONS...] FILES...\n\n",program);
+	puts("If no files or directories are specified, compile the present working directory.");
+	puts("If no command line arguments are specified, reads the options from a file named the same as the base name of the PWD, with .conf at the end.");
+	puts("If the PWD is /home/alice/Documents/MyProgram, read the options from the file MyProgram.conf.");
 	puts("Options MUST come before the files and directories to be compiled.");
 	puts("Unless a file is specific to the option, then it must come immediately after said option.");
 	puts("-A: path to artifact to be built, the final executable file or shared object file.");
@@ -129,6 +135,8 @@ void help_screen(const char*program)
 	puts("-s: Show commands being executed on the screen.");
 	puts("--cc PROGRAM: Specifies the C compiler.");
 	puts("--c++ PROGRAM: Specifies the C++ compiler.");
+	puts("--version: Shows the program version.");
+	puts("--help: Shows this message.");
 }
 char**parse_help(const char*name,struct cpbuild_options*options,char**first,char**last)
 {
@@ -141,9 +149,17 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 	char moveiter=0,helped=0;
 	char**baseit=first;
 	char**it=baseit;
+	size_t shift=0;
+	char*tmp;
 	while(baseit!=last&&!helped)
 	{
 		arg=*it;
+		if(stack.len==0&&shift>0)
+		{
+			tmp=it[0];
+			it[0]=it[-shift];
+			it[-shift]=tmp;
+		}
 		if(nxtcnt==0)
 			nxtarg=0;
 		switch(nxtarg)
@@ -266,6 +282,11 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 								help_screen(name);
 								helped=1;
 							}
+							else if(strcmp(arg+1,"version")==0)
+							{
+								printf("%s version %u.%u.%u\n",name,VERSION_MAJOR,VERSION_MINOR,VERSION_PATCH);
+								helped=1;
+							}
 							break;
 						default:
 							fprintf(stderr,"Unrecognized option %c will be ignored.\n",*arg);
@@ -280,7 +301,9 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 					}
 				}
 				else if(stack.len==0)
-					last=baseit--;
+				{
+					++shift;
+				}
 				break;
 		}
 		if(currops!=NULL)
@@ -312,12 +335,8 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 		else
 			it=stack.data[stack.len-1].it;
 	}
-	if(helped)
-	{
-		baseit=NULL;
-	}
 	free(stack.data);
-	return baseit;
+	return helped?NULL:last-shift;
 }
 char*read_config(const char*fname)
 {
