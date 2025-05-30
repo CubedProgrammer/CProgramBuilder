@@ -313,7 +313,17 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 			nxtcnt=0;
 			if(stack.len==0)
 			{
+				if(shift!=0)
+				{
+					for(char**shiftIt=baseit+1;shiftIt!=baseit+currops->len;++shiftIt)
+					{
+						tmp=shiftIt[0];
+						shiftIt[0]=shiftIt[-shift];
+						shiftIt[-shift]=tmp;
+					}
+				}
 				baseit+=currops->len-1;
+				currops->options-=shift;
 			}
 			else
 				stack.data[stack.len-1].it+=currops->len-1;
