@@ -21,7 +21,7 @@ size_t global_file_len;
 size_t global_file_cap;
 const unsigned VERSION_MAJOR=0;
 const unsigned VERSION_MINOR=3;
-const unsigned VERSION_PATCH=2;
+const unsigned VERSION_PATCH=4;
 int initialize_global_file_data(void)
 {
 	int failed=1;
@@ -138,8 +138,9 @@ void help_screen(const char*program)
 	puts("--version: Shows the program version.");
 	puts("--help: Shows this message.");
 }
-char**parse_help(const char*name,struct cpbuild_options*options,char**first,char**last)
+struct program_args parse_help(const char*name,struct cpbuild_options*options,char**first,char**last)
 {
+	struct program_args targets;
 	unsigned nxtarg=0,nxtcnt=0;
 	char*arg;
 	struct program_options*currops=NULL;
@@ -149,17 +150,15 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 	char moveiter=0,helped=0;
 	char**baseit=first;
 	char**it=baseit;
-	size_t shift=0;
 	char*tmp;
+	if(init_program_args(&targets,2))
+	{
+		perror("Initializing array of targets failed");
+		baseit=last;
+	}
 	while(baseit!=last&&!helped)
 	{
 		arg=*it;
-		if(stack.len==0&&shift>0)
-		{
-			tmp=it[0];
-			it[0]=it[-shift];
-			it[-shift]=tmp;
-		}
 		if(nxtcnt==0)
 			nxtarg=0;
 		switch(nxtarg)
@@ -280,12 +279,12 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 							else if(strcmp(arg+1,"help")==0)
 							{
 								help_screen(name);
-								helped=1;
+								options->helped=1;
 							}
 							else if(strcmp(arg+1,"version")==0)
 							{
 								printf("%s version %u.%u.%u\n",name,VERSION_MAJOR,VERSION_MINOR,VERSION_PATCH);
-								helped=1;
+								options->helped=1;
 							}
 							break;
 						default:
@@ -300,9 +299,9 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 							nxtcnt=atoi(arg+1);
 					}
 				}
-				else if(stack.len==0)
+				else if(append_program_arg(&targets,arg))
 				{
-					++shift;
+					perror("Adding target to array failed");
 				}
 				break;
 		}
@@ -313,17 +312,7 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 			nxtcnt=0;
 			if(stack.len==0)
 			{
-				if(shift!=0)
-				{
-					for(char**shiftIt=baseit+1;shiftIt!=baseit+currops->len;++shiftIt)
-					{
-						tmp=shiftIt[0];
-						shiftIt[0]=shiftIt[-shift];
-						shiftIt[-shift]=tmp;
-					}
-				}
 				baseit+=currops->len-1;
-				currops->options-=shift;
 			}
 			else
 				stack.data[stack.len-1].it+=currops->len-1;
@@ -346,7 +335,7 @@ char**parse_help(const char*name,struct cpbuild_options*options,char**first,char
 			it=stack.data[stack.len-1].it;
 	}
 	free(stack.data);
-	return helped?NULL:last-shift;
+	return targets;
 }
 char*read_config(const char*fname)
 {
@@ -402,7 +391,7 @@ char*read_config(const char*fname)
 	}
 	return content;
 }
-char**parse_args(const char*name,int argl,char**argv,struct cpbuild_options*options)
+struct program_args parse_args(const char*name,int argl,char**argv,struct cpbuild_options*options)
 {
 	return parse_help(name,options,argv,argv+argl);
 }

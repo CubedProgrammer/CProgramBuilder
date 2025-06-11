@@ -9,53 +9,62 @@ int main(int argl,char**argv)
 {
 	struct cpbuild_options defops;
 	char thisdir[]=".";
-	char*thisdirp[]={thisdir,NULL};
+	char*thisdirp=thisdir;
 	int succ=initialize_global_file_data();
 	if(succ==0)
 	{
 		memset(&defops,0,sizeof defops);
 		char**argstart=argv+1;
-		char**oldstart=argstart;
 		char*conffile=NULL;
 		char*emptyargs[]={"-b",conffile,NULL};
 		int freearti=1;
+		struct program_args targetArray={NULL,0,0};
 		if(argl==1)
 		{
-			fill_default_options(&defops);
-			size_t artilen=strlen(defops.artifact);
-			conffile=malloc(artilen + 6);
+			get_default_artifact(&conffile,5);
 			if(conffile!=NULL)
 			{
-				memcpy(conffile,defops.artifact,artilen);
-				memcpy(conffile+artilen,".conf",6);
+				strcat(conffile,".conf");
 				emptyargs[1]=conffile;
 				if(access(conffile,F_OK)==0)
 				{
-					oldstart=argstart=emptyargs;
+					argstart=emptyargs;
 					argl=2;
-					argstart=parse_args(argv[0],argl,argstart,&defops);
+					targetArray=parse_args(argv[0],argl,argstart,&defops);
 				}
 			}
 		}
 		else
 		{
 			--argl;
-			argstart=parse_args(argv[0],argl,argstart,&defops);
-			freearti=defops.artifact==NULL;
-			if(fill_default_options(&defops))
-			{
-				perror("fill_default_options failed:");
-				argstart=NULL;
-			}
+			targetArray=parse_args(argv[0],argl,argstart,&defops);
 		}
-		if(argstart!=NULL)
+		freearti=defops.artifact==NULL;
+		if(fill_default_options(&defops))
 		{
-			if(argstart==oldstart+argl)
-			{
-				argstart=thisdirp;
-			}
-			succ=cpbuild(argstart,&defops);
+			perror("fill_default_options failed:");
+			argstart=NULL;
+		}
+		char**ptr;
+		unsigned len;
+		if(targetArray.options==NULL)
+		{
+			ptr=&thisdirp;
+			len=1;
+		}
+		else
+		{
+			ptr=targetArray.options;
+			len=targetArray.len;
+		}
+		if(!defops.helped)
+		{
+			succ=cpbuild(ptr,len,&defops);
 			wait_children();
+		}
+		if(targetArray.options!=NULL)
+		{
+			free(targetArray.options);
 		}
 		if(conffile!=NULL)
 		{

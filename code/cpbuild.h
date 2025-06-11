@@ -14,22 +14,24 @@ struct program_args
 };
 struct cpbuild_options
 {
-	unsigned short boolops;
 	char*artifact;
 	char*compiler;
 	char*compilerpp;
 	char*objdir;
-	unsigned char parallel;
 	unsigned pathshift;
+	unsigned short boolops;
+	unsigned char parallel;
+	char helped;
 	struct program_options compilerops,compilerppops;
 	struct program_options linkerops;
 	struct program_options ccmd,cppcmd;
 	struct program_args linkerargs;
 };
 typedef struct cpbuild_options cpbuild_options_t;
-int cpbuild(char**targets,cpbuild_options_t*opt);
+int cpbuild(char**targets,unsigned len,cpbuild_options_t*opt);
 int buildfile(char*filename,char*outfile,const cpbuild_options_t*opt);
 int init_program_args(struct program_args*arr,unsigned short capa);
 int append_program_arg(struct program_args*arr,char*arg);
 int fill_default_options(cpbuild_options_t*opt);
+int get_default_artifact(char**out,unsigned extra);
 #endif

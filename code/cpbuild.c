@@ -71,7 +71,7 @@ int make_command_line(struct program_options*restrict d,const struct program_opt
 	}
 	return failed;
 }
-int cpbuild(char**targets,struct cpbuild_options*opt)
+int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 {
 	int succ=0;
 	struct stat fdat;
@@ -80,14 +80,13 @@ int cpbuild(char**targets,struct cpbuild_options*opt)
 	int cppfail=make_command_line(&opt->cppcmd,&opt->compilerppops,opt->compilerpp);
 	if(!cfail&&!cppfail)
 	{
-		size_t targetlen=0;
+		size_t targetlen=len;
 		init_program_args(&opt->linkerargs,opt->linkerops.len+3);
 		opt->linkerargs.options[0]=opt->compiler;
 		opt->linkerargs.options[1]=cpb_cmd_option_list+3;
 		opt->linkerargs.options[2]=opt->artifact;
 		memcpy(opt->linkerargs.options+3,opt->linkerops.options,sizeof(char*)*opt->linkerops.len);
 		opt->linkerargs.len=opt->linkerops.len+3;
-		for(char**it=targets;*it!=NULL;++targetlen,++it);
 		if(targetlen==1)
 		{
 			opt->pathshift=strlen(targets[0])+1;
@@ -241,62 +240,43 @@ int buildfile(char*filename,char*outfile,const cpbuild_options_t*opt)
 }
 int init_program_args(struct program_args*arr,unsigned short capa)
 {
-	int succ = 0;
-	arr->options = malloc(capa * sizeof(*arr->options));
-	if(arr->options == NULL)
-		succ = -1;
+	int succ=0;
+	arr->options=malloc(capa*sizeof(*arr->options));
+	if(arr->options==NULL)
+		succ=-1;
 	else
 	{
-		arr->len = 0;
-		arr->capa = capa;
+		arr->len=0;
+		arr->capa=capa;
 	}
 	return succ;
 }
-int append_program_arg(struct program_args *arr, char *arg)
+int append_program_arg(struct program_args*arr,char*arg)
 {
-	int succ = 0;
-	if(arr->len == arr->capa)
+	int succ=0;
+	if(arr->len==arr->capa)
 	{
 		char**new=malloc((arr->capa+(arr->capa>>1))*sizeof(char*));
-		if(new != NULL)
+		if(new!=NULL)
 		{
-			arr->capa += arr->capa >> 1;
-			memcpy(new, arr->options, arr->len * sizeof(char*));
+			arr->capa+=arr->capa>>1;
+			memcpy(new,arr->options,arr->len*sizeof(char*));
 			free(arr->options);
-			arr->options = new;
+			arr->options=new;
 		}
 		else
-			succ = -1;
+			succ=-1;
 	}
-	if(succ == 0)
-		arr->options[arr->len++] = arg;
+	if(succ==0)
+		arr->options[arr->len++]=arg;
 	return succ;
 }
 int fill_default_options(cpbuild_options_t*opt)
 {
 	int succ=0;
-	char cbuf[4096];
 	if(opt->artifact==NULL)
 	{
-		if(realpath(".",cbuf)==NULL)
-			succ=-1;
-		else
-		{
-			unsigned off=0,len=1;
-			for(const char*it=cbuf;*it!='\0';++len,++it)
-			{
-				if(*it=='/')
-				{
-					off=it+1-cbuf;
-					len=0;
-				}
-			}
-			opt->artifact=malloc(len);
-			if(opt->artifact==NULL)
-				succ=-1;
-			else
-				memcpy(opt->artifact,cbuf+off,len);
-		}
+		succ=get_default_artifact(&opt->artifact,0);
 	}
 	if(opt->compiler==NULL)
 	{
@@ -316,5 +296,30 @@ int fill_default_options(cpbuild_options_t*opt)
 	}
 	opt->parallel=opt->parallel<1?1:opt->parallel;
 	opt->objdir=opt->objdir==NULL?".":opt->objdir;
+	return succ;
+}
+int get_default_artifact(char**out,unsigned extra)
+{
+	int succ=0;
+	char cbuf[4096];
+	if(realpath(".",cbuf)==NULL)
+		succ=-1;
+	else
+	{
+		unsigned off=0,len=1;
+		for(const char*it=cbuf;*it!='\0';++len,++it)
+		{
+			if(*it=='/')
+			{
+				off=it+1-cbuf;
+				len=0;
+			}
+		}
+		*out=malloc(len+extra);
+		if(*out==NULL)
+			succ=-1;
+		else
+			memcpy(*out,cbuf+off,len);
+	}
 	return succ;
 }

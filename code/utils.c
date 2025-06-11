@@ -37,21 +37,21 @@ void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),voi
 			}
 			else
 			{
-				namelen = strlen(en->d_name);
-				if(strcmp(en->d_name, ".") && strcmp(en->d_name, ".."))
+				namelen=strlen(en->d_name);
+				if(strcmp(en->d_name,".")&&strcmp(en->d_name,".."))
 				{
-					currdir[dirlen] = '/';
-					memcpy(currdir + dirlen + 1, en->d_name, namelen + 1);
+					currdir[dirlen]='/';
+					memcpy(currdir+dirlen+1,en->d_name,namelen+1);
 					dirlen += namelen + 1;
-					if(en->d_type == DT_DIR)
+					if(en->d_type==DT_DIR)
 					{
-						handarr[depth] = opendir(currdir);
-						if(handarr[depth] == NULL)
+						handarr[depth]=opendir(currdir);
+						if(handarr[depth]==NULL)
 						{
-							fprintf(stderr, "Opening %s", currdir);
+							fprintf(stderr,"Opening %s",currdir);
 							perror(" failed");
-							for(; dirlen > 0 && currdir[dirlen] != '/'; --dirlen);
-							currdir[dirlen] = '\0';
+							for(;dirlen>0&&currdir[dirlen]!='/';--dirlen);
+							currdir[dirlen]='\0';
 						}
 						else
 							++depth;
@@ -60,8 +60,8 @@ void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),voi
 					else
 					{
 						func(currdir,arg,0);
-						for(; dirlen > 0 && currdir[dirlen] != '/'; --dirlen);
-						currdir[dirlen] = '\0';
+						for(;dirlen>0&&currdir[dirlen]!='/';--dirlen);
+						currdir[dirlen]='\0';
 					}
 				}
 			}
@@ -163,7 +163,7 @@ char strcontains(const char*strlist,const char*str)
 	char found=0;
 	for(size_t len=strlen(strlist);len>0;strlist+=len+1,len=strlen(strlist))
 	{
-		if(strcmp(strlist, str)==0)
+		if(strcmp(strlist,str)==0)
 			found=1;
 	}
 	return found;
