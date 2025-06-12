@@ -9,30 +9,42 @@
 #include"cpbuild.h"
 #include"utils.h"
 const char cpb_default_option_list[]="cc\0c++";
-const char cpb_accepted_extensions[]="c\0c++\0cpp\0cxx\0";
+const char cpb_accepted_extensions[]="c\0c++\0cc\0cpp\0cxx\0";
 char cpb_cmd_option_list[]="-c\0-o\0-MM";
+struct option_and_files
+{
+	cpbuild_options_t*opt;
+	struct program_args files;
+	struct program_args folders;
+};
 int timespec_compare(const struct timespec*a,const struct timespec*b)
 {
 	long c[2]={a->tv_sec-b->tv_sec,a->tv_nsec-b->tv_nsec};
 	int64_t result=c[c[0]==0];
 	return(result>=0)+(result>0)-1;
 }
-void build_callback(const char*file,void*arg,int isdir)
+int build_callback(const char*file,void*arg,int info)
 {
-	struct cpbuild_options*opt=arg;
+	struct option_and_files*oaf=arg;
+	struct cpbuild_options*opt=oaf->opt;
+	int r=0;
+	int isdir=info&1;
 	char*periodptr=strrchr(file,'.');
 	size_t len=strlen(file);
+	info>>=1;
 	if(isdir)
 	{
-		struct stat objdat,dirdat;
-		int ores=stat(opt->objdir,&objdat);
-		int dres=stat(file,&dirdat);
-		int same=ores==0&&dres==0&&objdat.st_dev==dirdat.st_dev&&objdat.st_ino==dirdat.st_ino;
-		if(!same)
+		if(info==3)
 		{
-			char*target=changeext_add_prefix(file+opt->pathshift,opt->objdir,"");
-			mkdir(target,0755);
-			free(target);
+			char*directory=changeext_add_prefix(file+opt->pathshift,opt->objdir,"");
+			if(directory==NULL)
+			{
+				perror("directory to be created is NULL, malloc failed");
+			}
+			else
+			{
+				r=append_program_arg(&oaf->folders,directory)==0;
+			}
 		}
 	}
 	else if(strcontains(cpb_accepted_extensions,periodptr+1))
@@ -49,11 +61,12 @@ void build_callback(const char*file,void*arg,int isdir)
 		else
 		{
 			memcpy(filename,file,len+1);
+			append_program_arg(&oaf->files,filename);
 			append_program_arg(&opt->linkerargs,objname);
-			buildfile(filename,objname,opt);
-			free(filename);
+			r=1;
 		}
 	}
+	return r;
 }
 int make_command_line(struct program_options*restrict d,const struct program_options*restrict s,char*compiler)
 {
@@ -81,6 +94,9 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 	if(!cfail&&!cppfail)
 	{
 		size_t targetlen=len;
+		size_t currLinkerLen;
+		struct option_and_files oaf;
+		oaf.opt=opt;
 		init_program_args(&opt->linkerargs,opt->linkerops.len+3);
 		opt->linkerargs.options[0]=opt->compiler;
 		opt->linkerargs.options[1]=cpb_cmd_option_list+3;
@@ -97,10 +113,35 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 				perror("stat failed");
 			else if(S_ISDIR(fdat.st_mode))
 			{
-				target=changeext_add_prefix(*it,opt->objdir,"");
-				mkdir(target,0755);
-				free(target);
-				iterate_directory(*it,&build_callback,opt);
+				currLinkerLen=opt->linkerargs.len;
+				if(init_program_args(&oaf.files,16)==0&&init_program_args(&oaf.folders,4)==0)
+				{
+					iterate_directory(*it,&build_callback,&oaf);
+					for(size_t i=oaf.folders.len;i>0;--i)
+					{
+						mkdir(oaf.folders.options[i-1],0755);
+						free(oaf.folders.options[i-1]);
+					}
+					free(oaf.folders.options);
+					for(size_t i=0;i<oaf.files.len;++i)
+					{
+						buildfile(oaf.files.options[i],opt->linkerargs.options[currLinkerLen+i],opt);
+						free(oaf.files.options[i]);
+					}
+					free(oaf.files.options);
+				}
+				else
+				{
+					if(oaf.files.options!=NULL)
+					{
+						free(oaf.files.options);
+					}
+					if(oaf.folders.options!=NULL)
+					{
+						free(oaf.folders.options);
+					}
+					perror("cpbuild: initializing array for files failed");
+				}
 			}
 			else
 			{

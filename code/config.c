@@ -21,7 +21,7 @@ size_t global_file_len;
 size_t global_file_cap;
 const unsigned VERSION_MAJOR=0;
 const unsigned VERSION_MINOR=3;
-const unsigned VERSION_PATCH=4;
+const unsigned VERSION_PATCH=5;
 int initialize_global_file_data(void)
 {
 	int failed=1;

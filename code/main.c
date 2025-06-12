@@ -16,7 +16,7 @@ int main(int argl,char**argv)
 		memset(&defops,0,sizeof defops);
 		char**argstart=argv+1;
 		char*conffile=NULL;
-		char*emptyargs[]={"-b",conffile,NULL};
+		char*emptyargs[]={"-b",conffile};
 		int freearti=1;
 		struct program_args targetArray={NULL,0,0};
 		if(argl==1)
@@ -47,7 +47,7 @@ int main(int argl,char**argv)
 		}
 		char**ptr;
 		unsigned len;
-		if(targetArray.options==NULL)
+		if(targetArray.len==0)
 		{
 			ptr=&thisdirp;
 			len=1;

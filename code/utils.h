@@ -5,7 +5,8 @@ struct vector_char
 	char*str;
 	unsigned len,cap;
 };
-void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),void*arg);
+typedef int(*directory_iterator_callback_t)(const char*,void*,int);
+void iterate_directory(const char*dirname,directory_iterator_callback_t func,void*arg);
 int runprogram(unsigned char maxi,char*const*args);
 int program_output(struct vector_char*data,char*const*args);
 char strcontains(const char*strlist,const char*str);

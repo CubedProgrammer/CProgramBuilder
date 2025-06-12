@@ -9,10 +9,10 @@
 #include<sys/wait.h>
 #include<unistd.h>
 #include"utils.h"
-void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),void*arg)
+void iterate_directory(const char*dirname,directory_iterator_callback_t func,void*arg)
 {
-	DIR *dirhand = opendir(dirname);
-	if(dirhand == NULL)
+	DIR *dirhand=opendir(dirname);
+	if(dirhand==NULL)
 	{
 		fprintf(stderr,"Opening %s",dirname);
 		perror(" failed");
@@ -20,19 +20,26 @@ void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),voi
 	else
 	{
 		char currdir[PATH_MAX];
-		DIR *handarr[128];
-		struct dirent *en, *enarr[128];
-		unsigned depth = 1;
-		size_t namelen, dirlen = strlen(dirname);
-		memcpy(currdir, dirname, dirlen + 1);
-		handarr[0] = dirhand;
-		while(depth > 0)
+		DIR*handarr[128];
+		struct dirent*en,*enarr[128];
+		char boolval[128];
+		unsigned depth=1;
+		size_t namelen,dirlen=strlen(dirname);
+		memcpy(currdir,dirname,dirlen+1);
+		handarr[0]=dirhand;
+		boolval[0]=0;
+		while(depth>0)
 		{
-			en = enarr[depth - 1] = readdir(handarr[depth - 1]);
-			if(en == NULL)
+			en=enarr[depth-1]=readdir(handarr[depth-1]);
+			if(en==NULL)
 			{
-				for(; dirlen > 0 && currdir[dirlen] != '/'; --dirlen);
-				currdir[dirlen] = '\0';
+				boolval[depth-1]|=func(currdir,arg,boolval[depth-1]<<2|3);
+				if(depth>1)
+				{
+					boolval[depth-2]|=boolval[depth-1];
+				}
+				for(;dirlen>0&&currdir[dirlen]!='/';--dirlen);
+				currdir[dirlen]='\0';
 				closedir(handarr[--depth]);
 			}
 			else
@@ -42,7 +49,7 @@ void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),voi
 				{
 					currdir[dirlen]='/';
 					memcpy(currdir+dirlen+1,en->d_name,namelen+1);
-					dirlen += namelen + 1;
+					dirlen+=namelen+1;
 					if(en->d_type==DT_DIR)
 					{
 						handarr[depth]=opendir(currdir);
@@ -54,12 +61,14 @@ void iterate_directory(const char*dirname,void(*func)(const char*,void*,int),voi
 							currdir[dirlen]='\0';
 						}
 						else
-							++depth;
-						func(currdir,arg,1);
+						{
+							boolval[depth-1]|=func(currdir,arg,1);
+							boolval[depth++]=0;
+						}
 					}
 					else
 					{
-						func(currdir,arg,0);
+						boolval[depth-1]|=func(currdir,arg,0);
 						for(;dirlen>0&&currdir[dirlen]!='/';--dirlen);
 						currdir[dirlen]='\0';
 					}
