@@ -21,7 +21,7 @@ size_t global_file_len;
 size_t global_file_cap;
 const unsigned VERSION_MAJOR=0;
 const unsigned VERSION_MINOR=3;
-const unsigned VERSION_PATCH=5;
+const unsigned VERSION_PATCH=6;
 int initialize_global_file_data(void)
 {
 	int failed=1;
@@ -285,6 +285,10 @@ struct program_args parse_help(const char*name,struct cpbuild_options*options,ch
 							{
 								printf("%s version %u.%u.%u\n",name,VERSION_MAJOR,VERSION_MINOR,VERSION_PATCH);
 								options->helped=1;
+							}
+							else
+							{
+								fprintf(stderr,"Unrecognized long option %s will be ignored.\n",arg+1);
 							}
 							break;
 						default:

@@ -34,7 +34,7 @@ int build_callback(const char*file,void*arg,int info)
 	info>>=1;
 	if(isdir)
 	{
-		if(info==3)
+		if(len>opt->pathshift&&info==3)
 		{
 			char*directory=changeext_add_prefix(file+opt->pathshift,opt->objdir,"");
 			if(directory==NULL)
@@ -47,7 +47,7 @@ int build_callback(const char*file,void*arg,int info)
 			}
 		}
 	}
-	else if(strcontains(cpb_accepted_extensions,periodptr+1))
+	else if(periodptr!=NULL&&strcontains(cpb_accepted_extensions,periodptr+1))
 	{
 		char*filename=malloc(len+1),*objname=changeext_add_prefix(file+opt->pathshift,opt->objdir,"o");
 		if(objname==NULL||filename==NULL)
@@ -110,7 +110,10 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		for(char**it=targets;it!=targets+targetlen;++it)
 		{
 			if(stat(*it,&fdat))
-				perror("stat failed");
+			{
+				fprintf(stderr,"stat %s",*it);
+				perror(" failed");
+			}
 			else if(S_ISDIR(fdat.st_mode))
 			{
 				currLinkerLen=opt->linkerargs.len;
