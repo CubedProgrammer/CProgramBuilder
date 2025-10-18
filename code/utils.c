@@ -235,6 +235,98 @@ void free_vector_char(struct vector_char*this)
 {
 	free(this->str);
 }
+int init_string_hashtable(string_hashtable*this)
+{
+	int succ=1;
+	this->table=malloc(64*sizeof(struct string_hashtable_entry*));
+	if(this->table!=NULL)
+	{
+		this->cap=64;
+		this->len=0;
+		succ=0;
+	}
+	return succ;
+}
+int reallocate_string_hashtable(string_hashtable*this)
+{
+	int succ=1;
+	size_t newcap=this->cap*2*sizeof(struct string_hashtable_entry*);
+	struct string_hashtable_entry**new=malloc(newcap);
+	if(new!=NULL)
+	{
+		size_t hv=0;
+		struct string_hashtable_entry**t=NULL;
+		memset(new,0,newcap);
+		for(struct string_hashtable_entry**it=this->table;it!=this->table+this->cap;++it)
+		{
+			for(struct string_hashtable_entry*node=*it;node!=NULL;node=node->next)
+			{
+				hv=hash_string(node->str)%newcap;
+				for(t=new+hv;*t!=NULL;t=&(*t)->next);
+				*t=node;
+				(*t)->next=NULL;
+			}
+		}
+		this->table=new;
+		this->cap=newcap;
+		succ=0;
+	}
+	return succ;
+}
+int insert_string_hashtable(string_hashtable*this,const char*key,struct vector_char value)
+{
+	int succ=0;
+	if(this->len>this->cap*3/4)
+	{
+		succ=reallocate_string_hashtable(this);
+	}
+	if(succ==0)
+	{
+		size_t hash=hash_string(key)%this->cap;
+		struct string_hashtable_entry**t=NULL;
+		char found=0;
+		for(t=this->table+hash;!found&&*t!=NULL;t=&(*t)->next)
+		{
+			if(strcmp(key,(*t)->str)==0)
+			{
+				(*t)->vec=value;
+				found=1;
+			}
+		}
+		if(!found)
+		{
+			(*t)->next=malloc(sizeof(struct string_hashtable_entry));
+			(*t)->next->str=key;
+			(*t)->next->vec=value;
+			(*t)->next->next=NULL;
+			++this->len;
+		}
+	}
+	return succ;
+}
+void free_string_hashtable(string_hashtable*this)
+{
+	struct string_hashtable_entry*next=NULL;
+	for(struct string_hashtable_entry**it=this->table;it!=this->table+this->cap;++it)
+	{
+		for(struct string_hashtable_entry*node=*it;node!=NULL;node=next)
+		{
+			next=node->next;
+			free(node);
+		}
+	}
+	free(this->table);
+}
+size_t hash_string(const char*str)
+{
+	size_t hv=0;
+	for(;*str!='\0';++str)
+	{
+		hv*=31;
+		hv+=*str;
+	}
+	return hv;
+}
 void wait_children(void)
 {
 	while(wait(NULL)>0);

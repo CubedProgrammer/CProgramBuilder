@@ -18,6 +18,7 @@ struct cpbuild_options
 	char*compiler;
 	char*compilerpp;
 	char*objdir;
+	char*cache;
 	unsigned pathshift;
 	unsigned short boolops;
 	unsigned char parallel;
@@ -29,7 +30,6 @@ struct cpbuild_options
 };
 typedef struct cpbuild_options cpbuild_options_t;
 int cpbuild(char**targets,unsigned len,cpbuild_options_t*opt);
-int buildfile(char*filename,char*outfile,const cpbuild_options_t*opt);
 int init_program_args(struct program_args*arr,unsigned short capa);
 int append_program_arg(struct program_args*arr,char*arg);
 int fill_default_options(cpbuild_options_t*opt);

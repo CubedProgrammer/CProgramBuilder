@@ -1,5 +1,4 @@
 #include<ctype.h>
-#include<stddef.h>
 #include<stdint.h>
 #include<stdio.h>
 #include<stdlib.h>
@@ -17,6 +16,7 @@ struct option_and_files
 	struct program_args files;
 	struct program_args folders;
 };
+int buildfile(FILE*cacheHandle,char*filename,char*outfile,const cpbuild_options_t*opt);
 int timespec_compare(const struct timespec*a,const struct timespec*b)
 {
 	long c[2]={a->tv_sec-b->tv_sec,a->tv_nsec-b->tv_nsec};
@@ -96,6 +96,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		size_t targetlen=len;
 		size_t currLinkerLen;
 		struct option_and_files oaf;
+		FILE*cache=NULL;
 		oaf.opt=opt;
 		init_program_args(&opt->linkerargs,opt->linkerops.len+3);
 		opt->linkerargs.options[0]=opt->compiler;
@@ -128,7 +129,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 					free(oaf.folders.options);
 					for(size_t i=0;i<oaf.files.len;++i)
 					{
-						buildfile(oaf.files.options[i],opt->linkerargs.options[currLinkerLen+i],opt);
+						buildfile(cache,oaf.files.options[i],opt->linkerargs.options[currLinkerLen+i],opt);
 						free(oaf.files.options[i]);
 					}
 					free(oaf.files.options);
@@ -149,7 +150,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 			else
 			{
 				if(append_program_arg(&opt->linkerargs, changeext_add_prefix(*it, opt->objdir, "o")) == 0)
-					buildfile(*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
+					buildfile(cache,*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
 				else
 				{
 					fprintf(stderr, "Adding %s", *it);
@@ -184,7 +185,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		free(opt->ccmd.options);
 	return succ;
 }
-int buildfile(char*filename,char*outfile,const cpbuild_options_t*opt)
+int buildfile(FILE*cacheHandle,char*filename,char*outfile,const cpbuild_options_t*opt)
 {
 	int succ=1;
 	struct stat fdat,odat;
@@ -237,6 +238,10 @@ int buildfile(char*filename,char*outfile,const cpbuild_options_t*opt)
 					else if(!space&&next)
 					{
 						*it='\0';
+						if(cacheHandle)
+						{
+							fprintf(cacheHandle,"%s\n",start);
+						}
 						if(stat(start,&fdat))
 						{
 							fprintf(stderr,"buildfile failed: stat %s",start);

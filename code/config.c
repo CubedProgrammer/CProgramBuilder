@@ -1,4 +1,3 @@
-#include<stddef.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -138,7 +137,7 @@ void help_screen(const char*program)
 	puts("--version: Shows the program version.");
 	puts("--help: Shows this message.");
 }
-struct program_args parse_help(const char*name,struct cpbuild_options*options,char**first,char**last)
+struct program_args parse_help(const char*name,cpbuild_options_t*options,char**first,char**last)
 {
 	struct program_args targets;
 	unsigned nxtarg=0,nxtcnt=0;
@@ -285,6 +284,10 @@ struct program_args parse_help(const char*name,struct cpbuild_options*options,ch
 							{
 								printf("%s version %u.%u.%u\n",name,VERSION_MAJOR,VERSION_MINOR,VERSION_PATCH);
 								options->helped=1;
+							}
+							else if(strncmp(arg+1,"dependency-cache",16)==0)
+							{
+								options->cache=arg[17]=='='?arg+18:arg+17;
 							}
 							else
 							{
