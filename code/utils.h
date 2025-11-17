@@ -7,7 +7,7 @@ struct vector_char
 };
 struct string_hashtable_entry
 {
-	const char*str;
+	char*str;
 	struct vector_char vec;
 	struct string_hashtable_entry*next;
 };
@@ -26,6 +26,11 @@ char*changeext_add_prefix(const char*og,const char*prefix,const char*ext);
 int init_vector_char(struct vector_char*this);
 int push_vector_char(struct vector_char*this,const char*first,const char*last);
 void free_vector_char(struct vector_char*this);
-size_t hash_string(const char*str);
+int init_string_hashtable(string_hashtable*this);
+int reallocate_string_hashtable(string_hashtable*this);
+int insert_string_hashtable(string_hashtable*this,char*key,struct vector_char value);
+struct string_hashtable_entry*find_string_hashtable(string_hashtable*this,const char*key);
+void free_string_hashtable(string_hashtable*this);
+long unsigned hash_string(const char*str);
 void wait_children(void);
 #endif

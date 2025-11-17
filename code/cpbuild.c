@@ -1,4 +1,5 @@
 #include<ctype.h>
+#include <stddef.h>
 #include<stdint.h>
 #include<stdio.h>
 #include<stdlib.h>
@@ -84,9 +85,88 @@ int make_command_line(struct program_options*restrict d,const struct program_opt
 	}
 	return failed;
 }
+int parse_cache(FILE*handle,string_hashtable*table)
+{
+	int fail=0;
+	size_t chcnt=0;
+	char stackbuf[8192];
+	char*file=stackbuf;
+	char*tempbuf=NULL;
+	size_t filecap=0;
+	int isdependency=0;
+	struct vector_char depends;
+	for(char ch=fgetc(handle);!fail&&ch!=EOF;ch=fgetc(handle))
+	{
+		if(isdependency)
+		{
+			if(ch=='\n')
+			{
+				if(chcnt==0)
+				{
+					isdependency=0;
+				}
+				chcnt=0;
+				ch='\0';
+			}
+			push_vector_char(&depends,&ch,&ch+1);
+			if(!isdependency)
+			{
+				fail=insert_string_hashtable(table,file,depends);
+				file=stackbuf;
+			}
+		}
+		else if(ch=='\n')
+		{
+			file[chcnt]='\0';
+			if(file==stackbuf)
+			{
+				file=malloc(++chcnt);
+				if(file!=NULL)
+				{
+					memcpy(file,stackbuf,chcnt);
+				}
+				else
+				{
+					fail=1;
+				}
+			}
+			chcnt=0;
+			fail=init_vector_char(&depends);
+			isdependency=1;
+		}
+		else if(chcnt+1>=sizeof(stackbuf))
+		{
+			if(file==stackbuf)
+			{
+				filecap=sizeof(stackbuf)<<1;
+				file=malloc(filecap);
+				memcpy(file,stackbuf,chcnt);
+			}
+			if(chcnt+1>=filecap)
+			{
+				tempbuf=realloc(file,filecap<<1);
+				if(tempbuf!=NULL)
+				{
+					file=tempbuf;
+				}
+				else
+				{
+					fail=1;
+				}
+			}
+			file[chcnt++]=ch;
+		}
+		else
+		{
+			stackbuf[chcnt++]=ch;
+		}
+	}
+	return fail;
+}
 int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 {
 	int succ=0;
+	int dependency_fail=0;
 	struct stat fdat;
 	char*target;
 	int cfail=make_command_line(&opt->ccmd,&opt->compilerops,opt->compiler);
@@ -96,6 +176,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		size_t targetlen=len;
 		size_t currLinkerLen;
 		struct option_and_files oaf;
+		string_hashtable dependency;
 		FILE*cache=NULL;
 		oaf.opt=opt;
 		init_program_args(&opt->linkerargs,opt->linkerops.len+3);
@@ -104,6 +185,17 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		opt->linkerargs.options[2]=opt->artifact;
 		memcpy(opt->linkerargs.options+3,opt->linkerops.options,sizeof(char*)*opt->linkerops.len);
 		opt->linkerargs.len=opt->linkerops.len+3;
+		if(opt->cache!=NULL)
+		{
+			dependency_fail=init_string_hashtable(&dependency);
+			cache=fopen(opt->cache,"rb");
+			if(!dependency_fail&&cache!=NULL)
+			{
+				dependency_fail=parse_cache(cache,&dependency);
+				fclose(cache);
+				cache=NULL;
+			}
+		}
 		if(targetlen==1)
 		{
 			opt->pathshift=strlen(targets[0])+1;
@@ -178,6 +270,10 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		for(unsigned short i=opt->linkerops.len+3;i<opt->linkerargs.len-1;++i)
 			free(opt->linkerargs.options[i]);
 		free(opt->linkerargs.options);
+		if(!dependency_fail&&opt->cache!=NULL)
+		{
+			free_string_hashtable(&dependency);
+		}
 	}
 	if(opt->cppcmd.options!=NULL)
 		free(opt->cppcmd.options);
@@ -242,6 +338,7 @@ int buildfile(FILE*cacheHandle,char*filename,char*outfile,const cpbuild_options_
 						{
 							fprintf(cacheHandle,"%s\n",start);
 						}
+						fprintf(stdout,"%s\n",start);
 						if(stat(start,&fdat))
 						{
 							fprintf(stderr,"buildfile failed: stat %s",start);

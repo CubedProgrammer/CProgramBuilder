@@ -243,6 +243,7 @@ int init_string_hashtable(string_hashtable*this)
 	{
 		this->cap=64;
 		this->len=0;
+		memset(this->table,0,this->cap*sizeof(struct string_hashtable_entry*));
 		succ=0;
 	}
 	return succ;
@@ -250,13 +251,14 @@ int init_string_hashtable(string_hashtable*this)
 int reallocate_string_hashtable(string_hashtable*this)
 {
 	int succ=1;
-	size_t newcap=this->cap*2*sizeof(struct string_hashtable_entry*);
-	struct string_hashtable_entry**new=malloc(newcap);
+	size_t newcap=this->cap*2;
+	size_t newbytelen=newcap*sizeof(struct string_hashtable_entry*);
+	struct string_hashtable_entry**new=malloc(newbytelen);
 	if(new!=NULL)
 	{
 		size_t hv=0;
 		struct string_hashtable_entry**t=NULL;
-		memset(new,0,newcap);
+		memset(new,0,newbytelen);
 		for(struct string_hashtable_entry**it=this->table;it!=this->table+this->cap;++it)
 		{
 			for(struct string_hashtable_entry*node=*it;node!=NULL;node=node->next)
@@ -273,7 +275,7 @@ int reallocate_string_hashtable(string_hashtable*this)
 	}
 	return succ;
 }
-int insert_string_hashtable(string_hashtable*this,const char*key,struct vector_char value)
+int insert_string_hashtable(string_hashtable*this,char*key,struct vector_char value)
 {
 	int succ=0;
 	if(this->len>this->cap*3/4)
@@ -304,6 +306,13 @@ int insert_string_hashtable(string_hashtable*this,const char*key,struct vector_c
 	}
 	return succ;
 }
+struct string_hashtable_entry*find_string_hashtable(string_hashtable*this,const char*key)
+{
+	size_t hash=hash_string(key)%this->cap;
+	struct string_hashtable_entry*en=this->table[hash];
+	for(;en!=NULL&&strcmp(en->str,key)!=0;en=en->next);
+	return en;
+}
 void free_string_hashtable(string_hashtable*this)
 {
 	struct string_hashtable_entry*next=NULL;
@@ -312,12 +321,14 @@ void free_string_hashtable(string_hashtable*this)
 		for(struct string_hashtable_entry*node=*it;node!=NULL;node=next)
 		{
 			next=node->next;
+			free(node->str);
+			free_vector_char(&node->vec);
 			free(node);
 		}
 	}
 	free(this->table);
 }
-size_t hash_string(const char*str)
+long unsigned hash_string(const char*str)
 {
 	size_t hv=0;
 	for(;*str!='\0';++str)
