@@ -17,7 +17,7 @@ struct option_and_files
 	struct program_args files;
 	struct program_args folders;
 };
-int buildfile(FILE*cacheHandle,char*filename,char*outfile,const cpbuild_options_t*opt);
+int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_options_t*opt);
 int timespec_compare(const struct timespec*a,const struct timespec*b)
 {
 	long c[2]={a->tv_sec-b->tv_sec,a->tv_nsec-b->tv_nsec};
@@ -108,9 +108,14 @@ int parse_cache(FILE*handle,string_hashtable*table)
 				chcnt=0;
 				ch='\0';
 			}
+			else
+			{
+				++chcnt;
+			}
 			push_vector_char(&depends,&ch,&ch+1);
 			if(!isdependency)
 			{
+				printf("inserting file %s\n",file);
 				fail=insert_string_hashtable(table,file,depends);
 				file=stackbuf;
 			}
@@ -192,6 +197,10 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 			if(!dependency_fail&&cache!=NULL)
 			{
 				dependency_fail=parse_cache(cache,&dependency);
+				for(string_hashtable_iterator it=begin_string_hashtable(&dependency);!equal_sht_iterator(it,end_string_hashtable(&dependency));next_sht_iterator(&it))
+				{
+					printf("file %s\n",get_sht_iterator(&it)->str);
+				}
 				fclose(cache);
 				cache=NULL;
 			}
@@ -221,7 +230,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 					free(oaf.folders.options);
 					for(size_t i=0;i<oaf.files.len;++i)
 					{
-						buildfile(cache,oaf.files.options[i],opt->linkerargs.options[currLinkerLen+i],opt);
+						buildfile(cache?&dependency:NULL,oaf.files.options[i],opt->linkerargs.options[currLinkerLen+i],opt);
 						free(oaf.files.options[i]);
 					}
 					free(oaf.files.options);
@@ -242,7 +251,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 			else
 			{
 				if(append_program_arg(&opt->linkerargs, changeext_add_prefix(*it, opt->objdir, "o")) == 0)
-					buildfile(cache,*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
+					buildfile(cache?&dependency:NULL,*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
 				else
 				{
 					fprintf(stderr, "Adding %s", *it);
@@ -281,7 +290,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		free(opt->ccmd.options);
 	return succ;
 }
-int buildfile(FILE*cacheHandle,char*filename,char*outfile,const cpbuild_options_t*opt)
+int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_options_t*opt)
 {
 	int succ=1;
 	struct stat fdat,odat;
@@ -298,9 +307,9 @@ int buildfile(FILE*cacheHandle,char*filename,char*outfile,const cpbuild_options_
 	args[len+2]=filename;
 	if(!recompile)
 	{
-		if(stat(outfile, &odat))
+		if(stat(outfile,&odat))
 			recompile=1;
-		else if(stat(filename, &fdat)==0)
+		else if(stat(filename,&fdat)==0)
 			recompile=timespec_compare(&fdat.st_mtim,&odat.st_mtim)>0;
 	}
 	if(!recompile)
@@ -334,9 +343,9 @@ int buildfile(FILE*cacheHandle,char*filename,char*outfile,const cpbuild_options_
 					else if(!space&&next)
 					{
 						*it='\0';
-						if(cacheHandle)
+						if(cache)
 						{
-							fprintf(cacheHandle,"%s\n",start);
+							//insert_string_hashtable()
 						}
 						fprintf(stdout,"%s\n",start);
 						if(stat(start,&fdat))

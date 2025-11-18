@@ -11,7 +11,7 @@
 #include"utils.h"
 void iterate_directory(const char*dirname,directory_iterator_callback_t func,void*arg)
 {
-	DIR *dirhand=opendir(dirname);
+	DIR*dirhand=opendir(dirname);
 	if(dirhand==NULL)
 	{
 		fprintf(stderr,"Opening %s",dirname);
@@ -297,10 +297,10 @@ int insert_string_hashtable(string_hashtable*this,char*key,struct vector_char va
 		}
 		if(!found)
 		{
-			(*t)->next=malloc(sizeof(struct string_hashtable_entry));
-			(*t)->next->str=key;
-			(*t)->next->vec=value;
-			(*t)->next->next=NULL;
+			*t=malloc(sizeof(struct string_hashtable_entry));
+			(*t)->str=key;
+			(*t)->vec=value;
+			(*t)->next=NULL;
 			++this->len;
 		}
 	}
@@ -312,6 +312,18 @@ struct string_hashtable_entry*find_string_hashtable(string_hashtable*this,const 
 	struct string_hashtable_entry*en=this->table[hash];
 	for(;en!=NULL&&strcmp(en->str,key)!=0;en=en->next);
 	return en;
+}
+string_hashtable_iterator begin_string_hashtable(const string_hashtable*this)
+{
+	struct string_hashtable_entry**it=this->table;
+	for(;it!=this->table+this->cap&&*it==NULL;++it);
+	string_hashtable_iterator i={it,this->table+this->cap,*it};
+	return i;
+}
+string_hashtable_iterator end_string_hashtable(const string_hashtable*this)
+{
+	string_hashtable_iterator i={this->table+this->cap,this->table+this->cap,NULL};
+	return i;
 }
 void free_string_hashtable(string_hashtable*this)
 {
@@ -327,6 +339,26 @@ void free_string_hashtable(string_hashtable*this)
 		}
 	}
 	free(this->table);
+}
+int equal_sht_iterator(string_hashtable_iterator a,string_hashtable_iterator b)
+{
+	return a.node==b.node;
+}
+void next_sht_iterator(string_hashtable_iterator*it)
+{
+	if(it->node->next!=NULL)
+	{
+		it->node=it->node->next;
+	}
+	else
+	{
+		for(++it->it;it->it!=it->endit&&*it->it==NULL;++it->it);
+		it->node=it->it==it->endit?NULL:*it->it;
+	}
+}
+struct string_hashtable_entry*get_sht_iterator(const string_hashtable_iterator*it)
+{
+	return it->node;
 }
 long unsigned hash_string(const char*str)
 {
