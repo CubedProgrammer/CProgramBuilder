@@ -106,7 +106,6 @@ int parse_cache(FILE*handle,string_hashtable*table)
 					isdependency=0;
 				}
 				chcnt=0;
-				ch='\0';
 			}
 			else
 			{
@@ -168,6 +167,16 @@ int parse_cache(FILE*handle,string_hashtable*table)
 	}
 	return fail;
 }
+void print_cache(FILE*handle,string_hashtable*cache)
+{
+	struct string_hashtable_entry*en=NULL;
+	for(string_hashtable_iterator it=begin_string_hashtable(cache);!equal_sht_iterator(it,end_string_hashtable(cache));next_sht_iterator(&it))
+	{
+		en=get_sht_iterator(&it);
+		fprintf(handle,"%s\n",en->str);
+		fwrite(en->vec.str,1,en->vec.len,handle);
+	}
+}
 int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 {
 	int succ=0;
@@ -197,10 +206,6 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 			if(!dependency_fail&&cache!=NULL)
 			{
 				dependency_fail=parse_cache(cache,&dependency);
-				for(string_hashtable_iterator it=begin_string_hashtable(&dependency);!equal_sht_iterator(it,end_string_hashtable(&dependency));next_sht_iterator(&it))
-				{
-					printf("file %s\n",get_sht_iterator(&it)->str);
-				}
 				fclose(cache);
 				cache=NULL;
 			}
@@ -230,7 +235,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 					free(oaf.folders.options);
 					for(size_t i=0;i<oaf.files.len;++i)
 					{
-						buildfile(cache?&dependency:NULL,oaf.files.options[i],opt->linkerargs.options[currLinkerLen+i],opt);
+						buildfile(opt->cache?&dependency:NULL,oaf.files.options[i],opt->linkerargs.options[currLinkerLen+i],opt);
 						free(oaf.files.options[i]);
 					}
 					free(oaf.files.options);
@@ -251,7 +256,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 			else
 			{
 				if(append_program_arg(&opt->linkerargs, changeext_add_prefix(*it, opt->objdir, "o")) == 0)
-					buildfile(cache?&dependency:NULL,*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
+					buildfile(opt->cache?&dependency:NULL,*it, opt->linkerargs.options[opt->linkerargs.len - 1], opt);
 				else
 				{
 					fprintf(stderr, "Adding %s", *it);
@@ -281,6 +286,12 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		free(opt->linkerargs.options);
 		if(!dependency_fail&&opt->cache!=NULL)
 		{
+			cache=fopen(opt->cache,"wb");
+			if(cache!=NULL)
+			{
+				print_cache(cache,&dependency);
+				fclose(cache);
+			}
 			free_string_hashtable(&dependency);
 		}
 	}
@@ -332,7 +343,21 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 				char*start=arr.str;
 				char*last=arr.str+arr.len;
 				char*it=arr.str;
+				struct string_hashtable_entry*en=NULL;
+				struct vector_char vc;
+				struct vector_char*vcp=&vc;
+				char linefeed='\n';
 				for(;it!=last&&*it!=':';++it);
+				if(cache)
+				{
+					en=find_string_hashtable(cache,filename);
+					if(en!=NULL)
+					{
+						vcp=&en->vec;
+						free_vector_char(vcp);
+					}
+					init_vector_char(vcp);
+				}
 				for(it+=it!=last;!recompile&&it!=last;++it)
 				{
 					next=isspace(*it)||*it=='\\';
@@ -342,12 +367,15 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 					}
 					else if(!space&&next)
 					{
-						*it='\0';
+						*it='\n';
 						if(cache)
 						{
-							//insert_string_hashtable()
+							if(push_vector_char(vcp,start,it+1))
+							{
+								perror("buildfile: push_vector_char failed");
+							}
 						}
-						fprintf(stdout,"%s\n",start);
+						*it='\0';
 						if(stat(start,&fdat))
 						{
 							fprintf(stderr,"buildfile failed: stat %s",start);
@@ -359,6 +387,19 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 						}
 					}
 					space=next;
+				}
+				push_vector_char(vcp,&linefeed,&linefeed+1);
+				if(cache&&&vc==vcp)
+				{
+					char*new=strdup(filename);
+					if(new!=NULL)
+					{
+						insert_string_hashtable(cache,new,vc);
+					}
+					else
+					{
+						perror("buildfile: strdup failed");
+					}
 				}
 			}
 			else
