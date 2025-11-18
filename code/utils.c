@@ -303,6 +303,10 @@ int insert_string_hashtable(string_hashtable*this,char*key,struct vector_char va
 			(*t)->next=NULL;
 			++this->len;
 		}
+		else
+		{
+			free(key);
+		}
 	}
 	return succ;
 }

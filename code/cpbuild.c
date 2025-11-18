@@ -177,6 +177,65 @@ void print_cache(FILE*handle,string_hashtable*cache)
 		fwrite(en->vec.str,1,en->vec.len,handle);
 	}
 }
+int cache_again(string_hashtable*c,const char*file,char*const*args)
+{
+	struct vector_char arr;
+	int fail=init_vector_char(&arr);
+	if(!fail)
+	{
+		int ret=program_output(&arr,args);
+		if(ret==0)
+		{
+			char*last=arr.str+arr.len;
+			char*it=arr.str;
+			char*it2=arr.str;
+			char space=0;
+			fwrite(arr.str,1,arr.len,stdout);
+			for(;it!=last&&*it!=':';++it);
+			for(++it;it!=last&&(*it=='\\'||isspace(*it));++it);
+			printf("arr.len is %u, it has offset %zu\n",arr.len,it-arr.str);
+			for(;it!=last;++it)
+			{
+				if(*it=='\\'||isspace(*it))
+				{
+					*it='\n';
+					++space;
+				}
+				else
+				{
+					space=0;
+				}
+				*it2=*it;
+				it2+=space<=1;
+			}
+			*it2++='\n';
+			arr.len-=last-it2;
+			fwrite(arr.str,1,arr.len,stdout);
+			printf("arr.len is %u\n",arr.len);
+			char*new=strdup(file);
+			if(new!=NULL)
+			{
+				if(insert_string_hashtable(c,new,arr))
+				{
+					perror("cache_again: insert_string_hashtable failed");
+					free(new);
+					free_vector_char(&arr);
+				}
+			}
+			else
+			{
+				perror("cache_again: strdup failed");
+				free_vector_char(&arr);
+			}
+		}
+		fail=ret;
+	}
+	else
+	{
+		perror("cache_again: init_vector_char failed");
+	}
+	return fail;
+}
 int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 {
 	int succ=0;
@@ -309,6 +368,7 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 	char**args=opt->ccmd.options;
 	char recompile=(opt->boolops&BOOLOPS_FORCE)==BOOLOPS_FORCE;
 	char*fileext=strrchr(filename,'.');
+	int justcached=0;
 	if(fileext!=NULL&&strcontains(cpb_accepted_extensions+2,fileext+1))
 	{
 		args=opt->cppcmd.options;
@@ -336,45 +396,52 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 		{
 			args[len+1]=cpb_cmd_option_list+6;
 			args[len+3]=NULL;
-			int r=program_output(&arr,args);
-			if(r==0)
+			struct string_hashtable_entry*en=NULL;
+			if(cache)
 			{
+				en=find_string_hashtable(cache,filename);
+			}
+			if(en==NULL)
+			{
+				int r=cache_again(cache,filename,args);
+				justcached=1;
+				if(r==0&&cache)
+				{
+					en=find_string_hashtable(cache,filename);
+				}
+				if(r)
+				{
+					fprintf(stderr,"buildfile: scanning dependency for %s into %s failed\n",filename,outfile);
+				}
+			}
+			if(en==NULL)
+			{
+				fprintf(stderr,"buildfile: still no entry for %s\n",filename);
+				fputs("Executing",stderr);
+				for(char**it=args;it!=args+len+6;++it)
+				{
+					fprintf(stderr," %s",*it);
+				}
+				fprintf(stderr," failed, recompiling %s anyways just in case.\n",filename);
+				recompile=1;
+			}
+			else
+			{
+				arr=en->vec;
 				char space=1,next;
 				char*start=arr.str;
 				char*last=arr.str+arr.len;
 				char*it=arr.str;
-				struct string_hashtable_entry*en=NULL;
-				struct vector_char vc;
-				struct vector_char*vcp=&vc;
-				char linefeed='\n';
-				for(;it!=last&&*it!=':';++it);
-				if(cache)
+				fwrite(start,1,arr.len,stdout);
+				for(;!recompile&&it!=last;++it)
 				{
-					en=find_string_hashtable(cache,filename);
-					if(en!=NULL)
-					{
-						vcp=&en->vec;
-						free_vector_char(vcp);
-					}
-					init_vector_char(vcp);
-				}
-				for(it+=it!=last;!recompile&&it!=last;++it)
-				{
-					next=isspace(*it)||*it=='\\';
+					next=*it=='\n';
 					if(space&&!next)
 					{
 						start=it;
 					}
 					else if(!space&&next)
 					{
-						*it='\n';
-						if(cache)
-						{
-							if(push_vector_char(vcp,start,it+1))
-							{
-								perror("buildfile: push_vector_char failed");
-							}
-						}
 						*it='\0';
 						if(stat(start,&fdat))
 						{
@@ -385,40 +452,29 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 						{
 							recompile=timespec_compare(&fdat.st_mtim,&odat.st_mtim)>0;
 						}
+						*it='\n';
 					}
 					space=next;
 				}
-				push_vector_char(vcp,&linefeed,&linefeed+1);
-				if(cache&&&vc==vcp)
-				{
-					char*new=strdup(filename);
-					if(new!=NULL)
-					{
-						insert_string_hashtable(cache,new,vc);
-					}
-					else
-					{
-						perror("buildfile: strdup failed");
-					}
-				}
-			}
-			else
-			{
-				fputs("Executing",stderr);
-				for(char**it=args;it!=args+len+6;++it)
-				{
-					fprintf(stderr," %s",*it);
-				}
-				fprintf(stderr," failed, recompiling %s anyways just in case.\n",filename);
-				recompile=1;
 			}
 			args[len+1]=cpb_cmd_option_list;
 			args[len+3]=cpb_cmd_option_list+3;
-			free_vector_char(&arr);
 		}
 	}
 	if(recompile)
 	{
+		if(cache&&!justcached)
+		{
+			args[len+1]=cpb_cmd_option_list+6;
+			args[len+3]=NULL;
+			int r=cache_again(cache,filename,args);
+			if(r)
+			{
+				fprintf(stderr,"buildfile: scanning dependency for %s into %s failed\n",filename,outfile);
+			}
+			args[len+1]=cpb_cmd_option_list;
+			args[len+3]=cpb_cmd_option_list+3;
+		}
 		args[len+4]=outfile;
 		if((opt->boolops&BOOLOPS_DISPLAY_COMMAND)==BOOLOPS_DISPLAY_COMMAND)
 		{
