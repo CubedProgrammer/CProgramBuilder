@@ -20,7 +20,7 @@ size_t global_file_len;
 size_t global_file_cap;
 const unsigned VERSION_MAJOR=0;
 const unsigned VERSION_MINOR=3;
-const unsigned VERSION_PATCH=6;
+const unsigned VERSION_PATCH=7;
 int initialize_global_file_data(void)
 {
 	int failed=1;
@@ -134,6 +134,8 @@ void help_screen(const char*program)
 	puts("-s: Show commands being executed on the screen.");
 	puts("--cc PROGRAM: Specifies the C compiler.");
 	puts("--c++ PROGRAM: Specifies the C++ compiler.");
+	puts("--dependency-cache: Stores the dependent files in CProgramBuilder.cache.");
+	puts("--dependency-cache=FILE: Stores the dependent files in the specified file.");
 	puts("--version: Shows the program version.");
 	puts("--help: Shows this message.");
 }

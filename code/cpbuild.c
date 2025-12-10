@@ -1,5 +1,4 @@
 #include<ctype.h>
-#include <stddef.h>
 #include<stdint.h>
 #include<stdio.h>
 #include<stdlib.h>
@@ -114,7 +113,6 @@ int parse_cache(FILE*handle,string_hashtable*table)
 			push_vector_char(&depends,&ch,&ch+1);
 			if(!isdependency)
 			{
-				printf("inserting file %s\n",file);
 				fail=insert_string_hashtable(table,file,depends);
 				file=stackbuf;
 			}
@@ -190,10 +188,8 @@ int cache_again(string_hashtable*c,const char*file,char*const*args)
 			char*it=arr.str;
 			char*it2=arr.str;
 			char space=0;
-			fwrite(arr.str,1,arr.len,stdout);
 			for(;it!=last&&*it!=':';++it);
 			for(++it;it!=last&&(*it=='\\'||isspace(*it));++it);
-			printf("arr.len is %u, it has offset %zu\n",arr.len,it-arr.str);
 			for(;it!=last;++it)
 			{
 				if(*it=='\\'||isspace(*it))
@@ -210,8 +206,6 @@ int cache_again(string_hashtable*c,const char*file,char*const*args)
 			}
 			*it2++='\n';
 			arr.len-=last-it2;
-			fwrite(arr.str,1,arr.len,stdout);
-			printf("arr.len is %u\n",arr.len);
 			char*new=strdup(file);
 			if(new!=NULL)
 			{
@@ -432,7 +426,6 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 				char*start=arr.str;
 				char*last=arr.str+arr.len;
 				char*it=arr.str;
-				fwrite(start,1,arr.len,stdout);
 				for(;!recompile&&it!=last;++it)
 				{
 					next=*it=='\n';
@@ -545,6 +538,10 @@ int fill_default_options(cpbuild_options_t*opt)
 			succ=-1;
 		else
 			memcpy(opt->compilerpp,cpb_default_option_list+3,4);
+	}
+	if(opt->cache!=NULL&&opt->cache[0]=='\0')
+	{
+		opt->cache="CProgramBuilder.cache";
 	}
 	opt->parallel=opt->parallel<1?1:opt->parallel;
 	opt->objdir=opt->objdir==NULL?".":opt->objdir;
