@@ -235,7 +235,6 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 	int succ=0;
 	int dependency_fail=0;
 	struct stat fdat;
-	char*target;
 	int cfail=make_command_line(&opt->ccmd,&opt->compilerops,opt->compiler);
 	int cppfail=make_command_line(&opt->cppcmd,&opt->compilerppops,opt->compilerpp);
 	if(!cfail&&!cppfail)
@@ -319,6 +318,7 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 		}
 		if(append_program_arg(&opt->linkerargs, NULL)==0)
 		{
+			wait_children();
 			if((opt->boolops&BOOLOPS_DISPLAY_COMMAND)==BOOLOPS_DISPLAY_COMMAND)
 			{
 				fputs(opt->linkerargs.options[0],stdout);
@@ -329,7 +329,6 @@ int cpbuild(char**targets,unsigned len,struct cpbuild_options*opt)
 				}
 				putchar('\n');
 			}
-			wait_children();
 			runprogram(opt->parallel,opt->linkerargs.options);
 		}
 		else

@@ -2,6 +2,7 @@
 #include<stdlib.h>
 #include<string.h>
 #include"config.h"
+const char CURLY_BRACES[]="{}";
 struct string_data
 {
 	char*carray;
@@ -151,7 +152,6 @@ struct program_args parse_help(const char*name,cpbuild_options_t*options,char**f
 	char moveiter=0,helped=0;
 	char**baseit=first;
 	char**it=baseit;
-	char*tmp;
 	if(init_program_args(&targets,2))
 	{
 		perror("Initializing array of targets failed");
@@ -316,15 +316,34 @@ struct program_args parse_help(const char*name,cpbuild_options_t*options,char**f
 		}
 		if(currops!=NULL)
 		{
+			size_t consumed=nxtcnt;
 			currops->options=it;
 			currops->len=nxtcnt;
+			if(currops->options[0][0]==CURLY_BRACES[0])
+			{
+				char**endit=stack.len==0?last:stack.data[stack.len-1].cparray+stack.data[stack.len-1].cplen;
+				++it;
+				for(currops->len=0;it!=endit&&it[0][0]!=CURLY_BRACES[1];++it)
+				{
+					++currops->len;
+				}
+				if(it==endit)
+				{
+					currops->len=0;
+				}
+				else
+				{
+					consumed=it-currops->options+1;
+					++currops->options;
+				}
+			}
 			nxtcnt=0;
 			if(stack.len==0)
 			{
-				baseit+=currops->len-1;
+				baseit+=consumed-1;
 			}
 			else
-				stack.data[stack.len-1].it+=currops->len-1;
+				stack.data[stack.len-1].it+=consumed-1;
 			currops=NULL;
 		}
 		if(!moveiter)
