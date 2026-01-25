@@ -21,7 +21,7 @@ size_t global_file_len;
 size_t global_file_cap;
 const unsigned VERSION_MAJOR=0;
 const unsigned VERSION_MINOR=3;
-const unsigned VERSION_PATCH=8;
+const unsigned VERSION_PATCH=9;
 int initialize_global_file_data(void)
 {
 	int failed=1;
@@ -255,6 +255,9 @@ struct program_args parse_help(const char*name,cpbuild_options_t*options,char**f
 							break;
 						case'f':
 							options->boolops|=BOOLOPS_FORCE;
+							break;
+						case'i':
+							options->initialize=1;
 							break;
 						case'j':
 							options->parallel=atoi(arg+1);

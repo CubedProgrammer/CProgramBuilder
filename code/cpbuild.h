@@ -23,6 +23,7 @@ struct cpbuild_options
 	unsigned short boolops;
 	unsigned char parallel;
 	char helped;
+	char initialize;
 	struct program_options compilerops,compilerppops;
 	struct program_options linkerops;
 	struct program_options ccmd,cppcmd;

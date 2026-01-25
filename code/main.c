@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include <sys/stat.h>
 #include<unistd.h>
 #include"config.h"
 #include"cpbuild.h"
@@ -57,7 +58,33 @@ int main(int argl,char**argv)
 			ptr=targetArray.options;
 			len=targetArray.len;
 		}
-		if(!defops.helped)
+		if(defops.initialize)
+		{
+			if(conffile==NULL)
+			{
+				get_default_artifact(&conffile,5);
+			}
+			if(conffile!=NULL)
+			{
+				strcat(conffile,".conf");
+				if(mkdir("object",0755))
+				{
+					perror("creating directory object failed");
+				}
+				if(mkdir("code",0755))
+				{
+					perror("creating directory code failed");
+				}
+				FILE*fh=fopen(conffile,"w");
+				fputs("-c\n{\n-Wall\n}\n-s\n-j4\n--dependency-cache\n-o\nobject\ncode\n",fh);
+				fclose(fh);
+			}
+			else
+			{
+				fputs("Failed to initialize configuration file.\n",stderr);
+			}
+		}
+		else if(!defops.helped)
 		{
 			succ=cpbuild(ptr,len,&defops);
 			wait_children();
