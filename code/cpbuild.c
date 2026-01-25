@@ -175,7 +175,7 @@ void print_cache(FILE*handle,string_hashtable*cache)
 		fwrite(en->vec.str,1,en->vec.len,handle);
 	}
 }
-int cache_again(string_hashtable*c,const char*file,char*const*args)
+int cache_again(string_hashtable*c,const char*file,char*const*args,struct vector_char*arrOut)
 {
 	struct vector_char arr;
 	int fail=init_vector_char(&arr);
@@ -206,20 +206,27 @@ int cache_again(string_hashtable*c,const char*file,char*const*args)
 			}
 			*it2++='\n';
 			arr.len-=last-it2;
-			char*new=strdup(file);
-			if(new!=NULL)
+			if(c!=NULL)
 			{
-				if(insert_string_hashtable(c,new,arr))
+				char*new=strdup(file);
+				if(new!=NULL)
 				{
-					perror("cache_again: insert_string_hashtable failed");
-					free(new);
+					if(insert_string_hashtable(c,new,arr))
+					{
+						perror("cache_again: insert_string_hashtable failed");
+						free(new);
+						free_vector_char(&arr);
+					}
+				}
+				else
+				{
+					perror("cache_again: strdup failed");
 					free_vector_char(&arr);
 				}
 			}
-			else
+			if(arrOut!=NULL)
 			{
-				perror("cache_again: strdup failed");
-				free_vector_char(&arr);
+				*arrOut=arr;
 			}
 		}
 		fail=ret;
@@ -396,7 +403,7 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 			}
 			if(en==NULL)
 			{
-				int r=cache_again(cache,filename,args);
+				int r=cache_again(cache,filename,args,&arr);
 				justcached=1;
 				if(r==0&&cache)
 				{
@@ -407,11 +414,11 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 					fprintf(stderr,"buildfile: scanning dependency for %s into %s failed\n",filename,outfile);
 				}
 			}
-			if(en==NULL)
+			if(cache&&en==NULL)
 			{
 				fprintf(stderr,"buildfile: still no entry for %s\n",filename);
 				fputs("Executing",stderr);
-				for(char**it=args;it!=args+len+6;++it)
+				for(char**it=args;it!=args+len+3;++it)
 				{
 					fprintf(stderr," %s",*it);
 				}
@@ -420,7 +427,10 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 			}
 			else
 			{
-				arr=en->vec;
+				if(en!=NULL)
+				{
+					arr=en->vec;
+				}
 				char space=1,next;
 				char*start=arr.str;
 				char*last=arr.str+arr.len;
@@ -459,7 +469,7 @@ int buildfile(string_hashtable*cache,char*filename,char*outfile,const cpbuild_op
 		{
 			args[len+1]=cpb_cmd_option_list+6;
 			args[len+3]=NULL;
-			int r=cache_again(cache,filename,args);
+			int r=cache_again(cache,filename,args,NULL);
 			if(r)
 			{
 				fprintf(stderr,"buildfile: scanning dependency for %s into %s failed\n",filename,outfile);
